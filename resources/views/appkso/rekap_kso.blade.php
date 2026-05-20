@@ -114,7 +114,7 @@
 
                     <!-- Tombol Print Rekap di sebelah kanan dropdown -->
                     @if ($rows && $rows->count() > 0)
-                        <button class="btn btn-warning no-print" id="btn-print-now" onclick="printPreview()">
+                        <button type="button" class="btn btn-warning no-print" id="btn-print-now">
                             PRINT REKAP
                         </button>
                     @endif

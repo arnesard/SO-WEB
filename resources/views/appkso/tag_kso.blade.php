@@ -124,9 +124,8 @@
 
         <!-- Tombol kanan -->
         <div style="display: flex; gap: 8px; align-items: center;">
-            <!-- Tombol Print -->
             <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
-                onclick="window.location.href='/appkso/rekap-kso'">
+                onclick="window.location.href='/appkso/rekap-kso?pic_name={{ urlencode($selectedPIC ?? '') }}'">
                 <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
                 Print Rekap KSO
             </button>

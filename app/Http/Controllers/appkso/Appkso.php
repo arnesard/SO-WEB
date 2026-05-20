@@ -404,7 +404,7 @@ class Appkso extends Controller
         </body>
         </html>';
     }
-    public function rekapKso()
+    public function rekapKso(Request $request)
     {
         $all = DB::connection('mysql_second')->table('cntso')->get();
 
@@ -416,15 +416,52 @@ class Appkso extends Controller
 
         $auditor = $all->pluck('auditor')->unique()->values();
 
+        // Ambil filter dari request
+        $selectedPIC = $request->pic_name;
+        $selectedAuditor = $request->auditor;
+
+        // Query data jika ada filter, jika tidak ada bisa kosong atau ambil semua
+        // Tergantung kebutuhan, kita ambil sesuai filter
+        $query = DB::connection('mysql_second')->table('cntso');
+        
+        if ($selectedPIC) {
+            $query->where('opr', $selectedPIC);
+        }
+        if ($selectedAuditor) {
+            $query->where('auditor', $selectedAuditor);
+        }
+        
+        // Cek jika filter diisi, barulah tarik data. Jika baru awal buka, biarkan kosong.
+        $rows = ($selectedPIC || $selectedAuditor) ? $query->get() : collect();
+
+        // Map deskripsi dari master_items (mysql)
+        if ($rows->isNotEmpty()) {
+            $itemCodes = $rows->pluck('ItemCode')->unique()->toArray();
+            $master_map = DB::connection('mysql')
+                ->table('master_items')
+                ->select('item_code_desc', 'description')
+                ->whereIn('item_code_desc', $itemCodes)
+                ->get()
+                ->keyBy('item_code_desc');
+
+            $rows = $rows->map(function ($row) use ($master_map) {
+                // Samakan properti dengan generatePrintPreview agar blade rekap_kso jalan
+                $master = $master_map->get($row->ItemCode);
+                $row->item = $row->ItemCode;
+                $row->nokso = $row->NoDoc;
+                $row->qty = $row->QtyStk;
+                $row->deskripsi = $master->description ?? 'N/A di Master';
+                return $row;
+            });
+        }
+
         return view('appkso.rekap_kso', [
             'pics' => $pics,
             'pic_list' => $pics,
             'pic_nokso_map' => $pic_nokso_map,
-
-            // 🔥 TAMBAHKAN INI
-            'rows' => collect(),
-            'selectedPIC' => null,
-            'selectedAuditor' => null,
+            'rows' => $rows,
+            'selectedPIC' => $selectedPIC,
+            'selectedAuditor' => $selectedAuditor,
             'auditor' => $auditor,
         ]);
     }
