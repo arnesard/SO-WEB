@@ -85,10 +85,10 @@
                     </h5>
 
                     <div style="width: 50%; text-align: right;">
-                        <button class="btn btn-xs btn-dark fw-bold shadow-sm" style="font-size: 10px;"
-                            onclick="exportToExcel()">
-                            <i data-lucide="file-spreadsheet" class="me-1" style="width: 12px; height: 12px;"></i> Export
-                            XLSX
+                        <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm" style="font-size: 10px;"
+                            onclick="window.open('{{ route('rekap.kso', ['so_name' => $selected_so]) }}', '_blank')">
+                            <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
+                            Print Rekap KSO
                         </button>
                         <button class="btn btn-xs btn-dark fw-bold shadow-sm" style="font-size: 10px;"
                             data-bs-toggle="modal" data-bs-target="#modalPrintTagKSO">

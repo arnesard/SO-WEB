@@ -120,17 +120,10 @@
         style="background-color: #fe6807; color: #fff; width: 100%; padding: 16px 24px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
 
         <!-- Judul -->
-        <h2 class="fw-bold mb-0" style="font-size: 35px;">Detail KSO</h2>
+        <h2 class="fw-bold mb-0" style="font-size: 28px;">Detail KSO</h2>
 
         <!-- Tombol kanan -->
         <div style="display: flex; gap: 8px; align-items: center;">
-            <!-- Tombol Print -->
-            <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
-                onclick="window.location.href='/appkso/rekap-kso'">
-                <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
-                Print Rekap KSO
-            </button>
-
             @if ($rows && $rows->count() > 0)
                 <div>
                     <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm" id="btn-print-now">

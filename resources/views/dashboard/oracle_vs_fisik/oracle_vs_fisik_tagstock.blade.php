@@ -13,18 +13,16 @@
                 <option value="" selected>-- KUNCI OPERATOR --</option>
             </select>
             <button type="button" id="btn-print-massal-tag"
-                class="btn btn-sm btn-success fw-bold text-uppercase px-3 shadow-sm d-none"
+                class="btn btn-sm btn-success fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center"
                 onclick="openTagStockPrintEngine()">
-                <i class="fa-solid fa-print me-1"></i> Print Rekap Tag Stock
+                <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Print Rekap Tag Stock
             </button>
         </div>
-        <div class="d-flex justify-content-end align-items-center gap-1">
-
+        <div class="d-flex justify-content-end align-items-center gap-1 d-none" id="doc-filter-container">
             <select id="tag-filter-doc-start" class="form-select form-select-sm fw-bold border-info"
                 style="width: 180px;">
                 <option value="">-- DOC AWAL --</option>
             </select>
-
             <select id="tag-filter-doc-end" class="form-select form-select-sm fw-bold border-info"
                 style="width: 180px;">
                 <option value="">-- DOC AKHIR --</option>
@@ -38,10 +36,20 @@
                 <input type="hidden" name="doc_start" id="f-doc-start">
                 <input type="hidden" name="doc_end" id="f-doc-end">
 
-                <button type="button" id="btn-tag-stock"
-                    class="btn btn-sm btn-primary fw-bold text-uppercase px-3 shadow-sm">
-                    <i class="fa-solid fa-filter me-1"></i> TAG STOCK
-                </button>
+                <div class="d-flex gap-1">
+                    <!-- Tombol Tag Stock -->
+                    <button type="button" id="btn-tag-stock"
+                        class="btn btn-sm btn-primary fw-bold text-uppercase px-3 shadow-sm d-flex align-items-center">
+                        <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> TAG STOCK
+                    </button>
+
+                    <!-- Tombol Reset -->
+                    <button type="button" id="btn-reset-filter"
+                        class="btn btn-sm btn-danger fw-bold text-uppercase px-3 shadow-sm d-flex align-items-center"
+                        onclick="resetFilters()">
+                        <i data-lucide="rotate-ccw" class="me-1" style="width: 14px; height: 14px;"></i> RESET
+                    </button>
+                </div>
             </form>
 
         </div>
@@ -88,7 +96,8 @@
 
                 <tbody id="tbody-tagstock-rows">
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-5 border-0">Silakan pilih target gudang dan
+                        <td colspan="8" class="text-center text-muted py-5 border-0">Silakan pilih target gudang
+                            dan
                             operator di atas untuk memilah baris area bro.</td>
                     </tr>
                 </tbody>
@@ -99,7 +108,8 @@
                     <tr>
                         <td colspan="5" class="text-end py-2 text-dark bg-light border-dark">TOTAL RINGKASAN
                             PENUGASAN :</td>
-                        <td id="total-summary-rack" class="text-center text-danger font-monospace bg-light border-dark">
+                        <td id="total-summary-rack"
+                            class="text-center text-danger font-monospace bg-light border-dark">
                             0 RAK</td>
                         <td id="total-summary-qty" class="text-end text-primary font-monospace bg-light border-dark">0
                             PCS</td>

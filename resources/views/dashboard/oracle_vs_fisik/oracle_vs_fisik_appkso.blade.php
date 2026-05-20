@@ -114,15 +114,14 @@
                                 style="width: 200px; font-size: 11px; height: 28px;">
                                 <option value="" selected>⏳ MEMUAT GUDANG...</option>
                             </select>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-2">
                             <button type="button" class="btn btn-xs btn-outline-dark fw-bold text-uppercase no-print"
                                 onclick="refreshCurrentFisikPage();"
                                 style="font-size: 10px; height: 26px; display: flex; align-items: center; gap: 4px;">
                                 <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Reset Data
                             </button>
+                        </div>
 
+                        <div class="d-flex align-items-center gap-2">
                             <button type="button" id="btn-print-rekap-appkso"
                                 class="btn btn-xs btn-success fw-bold text-uppercase no-print"
                                 style="font-size: 10px; height: 26px; display: flex; align-items: center; gap: 4px;">
@@ -339,10 +338,10 @@
                 <div class="small fw-bold text-secondary font-monospace" style="font-size: 10px;">
                     Menampilkan: <span id="modal-total-rows" class="text-danger">0</span> Item SKU
                 </div>
-                <button type="button" class="btn btn-xs btn-secondary fw-bold text-uppercase rounded-pill px-3"
+                {{-- <button type="button" class="btn btn-xs btn-secondary fw-bold text-uppercase rounded-pill px-3"
                     data-bs-dismiss="modal" style="font-size: 10px; height: 24px;">
                     Close
-                </button>
+                </button> --}}
             </div>
         </div>
     </div>
@@ -461,9 +460,9 @@
 
                     <div>
                         <label class="form-label fw-bold mb-1 text-secondary">TANGGAL NOTA KARTU KSO</label>
-                        <input type="text" id="modal-kso-print-tanggal-manual"
-                            class="form-control form-control-sm fw-bold border-primary"
-                            placeholder="Contoh: 22 / DESEMBER / 2026" required style="font-size: 11px;">
+                        <input type="date" id="modal-kso-print-tanggal-manual"
+                            class="form-control form-control-sm fw-bold border-primary text-uppercase" required
+                            style="font-size: 11px;">
                     </div>
 
                 </div>

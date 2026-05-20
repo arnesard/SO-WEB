@@ -79,6 +79,7 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
 
             Route::post('/import', 'import')->name('import');
             Route::get('/data', 'getData')->name('data');
+            Route::get('/get-warehouses', 'getWarehouseList')->name('get-warehouses');
             Route::get('/documents', [OracleVsFisikTagStockController::class, 'getDocuments']);
         });
 
@@ -108,8 +109,10 @@ Route::prefix('appkso')->group(function () {
     Route::get('/', [Appkso::class, 'index'])->name('appkso.index');
     Route::post('/fetch-tag-data', [Appkso::class, 'fetchTagKSOData'])->name('appkso.fetch-tag-data');
     Route::post('/print-preview', [Appkso::class, 'generatePrintPreview'])->name('appkso.print-preview');
-    Route::get('/rekap-kso', [Appkso::class, 'rekapKso']);
+    Route::get('/rekap-kso', [Appkso::class, 'rekapKso'])->name('rekap.kso');
     Route::post('/print-rekap-preview', [Appkso::class, 'generateRekapPreview'])->name('appkso.print-rekap-preview');
+    Route::post('/save-session-date', [Appkso::class, 'saveSessionDate'])
+        ->name('save.session.date');
 });
 Route::get('/appkso', [Appkso::class, 'index'])->name('appkso.index');
 

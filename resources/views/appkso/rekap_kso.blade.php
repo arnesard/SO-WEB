@@ -37,29 +37,6 @@
         }
 
 
-        /* Container running text */
-        .running-container {
-            width: 100%;
-            height: 28px;
-            overflow: hidden;
-            position: relative;
-            background: #ffebcc;
-            border: 1px solid #ffc107;
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-        }
-
-        .running-text {
-            white-space: nowrap;
-            color: #d35400;
-            font-size: 16px;
-            font-weight: bold;
-            display: inline-block;
-            position: relative;
-            animation: scrollText 10s linear infinite;
-        }
-
         @keyframes scrollText {
             0% {
                 transform: translateX(300%);
@@ -71,83 +48,54 @@
         }
     </style>
 </head>
+{{-- FILTER & ACTION --}}
+<div
+    style="background-color: #fe6807; color: #fff; width: 100%; padding: 16px 24px; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+    <h2 class="fw-bold mb-0" style="font-size: 23px;">Detail Rekap KSO</h2>
+
+    <!-- Tambahkan class w-100 dan justify-content-end pada form -->
+    <form action="" method="GET" class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end"
+        id="picForm" style="max-width: 70%;">
+
+        <select name="pic_name" id="picName" class="form-select" style="width: 200px;" required>
+            <option value="">Pilih PIC</option>
+            @foreach ($pics as $pic)
+                <option value="{{ $pic }}" {{ $selectedPIC == $pic ? 'selected' : '' }}>
+                    {{ $pic_map[$pic]->oprname ?? $pic }}
+                </option>
+            @endforeach
+        </select>
+
+        <select name="auditor" class="form-select" style="width: 200px;" id="auditorSelect" required>
+            <option value="">Pilih Auditor</option>
+            @foreach ($auditor as $ad)
+                <option value="{{ $ad }}"
+                    {{ isset($selectedAuditor) && $selectedAuditor == $ad ? 'selected' : '' }}>
+                    {{ $ad }}
+                </option>
+            @endforeach
+        </select>
+
+        <!-- Tombol Action sekarang otomatis mentok kanan -->
+        <div class="d-flex gap-2 ms-2">
+            @if ($rows && $rows->count() > 0)
+                <button type="button" class="btn btn-dark fw-bold shadow-sm text-nowrap" id="btn-print-now">
+                    <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
+                    Print Rekap KSO
+                </button>
+            @endif
+
+            <button type="button" class="btn btn-dark fw-bold shadow-sm text-nowrap" onclick="window.close();">
+                <i data-lucide="arrow-left" class="me-1" style="width: 12px; height: 12px;"></i>
+                Tutup
+            </button>
+        </div>
+
+    </form>
+</div>
 
 <body>
-    {{-- RUNNING TEXT --}}
-    <div class="running-container no-print" style="top: -20px;">
-        <div class="running-text">
-            Gunakan Browser MICROSOFT EDGE untuk Proses Print TAG STOCK
-        </div>
-    </div>
-
     <div class="container position-relative" id="main-content" style="top: -13px;">
-
-        {{-- FILTER & ACTION --}}
-        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap no-print">
-            <div class="w-75" style="height: 38px;">
-                <form action="" method="GET" class="d-flex gap-2 align-items-center" id="picForm">
-                    <select name="pic_name" id="picName" class="form-select w-25" required>
-                        <option value="">Pilih PIC</option>
-                        @foreach ($pics as $pic)
-                            @php
-                                $val = is_object($pic)
-                                    ? $pic->value ?? ($pic->opr ?? '')
-                                    : (is_array($pic)
-                                        ? $pic['value'] ?? ($pic['opr'] ?? '')
-                                        : $pic);
-                            @endphp
-
-                            <option value="{{ $val }}" {{ $selectedPIC == $val ? 'selected' : '' }}>
-                                {{ $val }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <select name="auditor" class="form-select w-25" id="auditorSelect" required>
-                        <option value="">Pilih Auditor</option>
-                        @foreach ($auditor as $ad)
-                            <option value="{{ $ad }}"
-                                {{ isset($selectedAuditor) && $selectedAuditor == $ad ? 'selected' : '' }}>
-                                {{ $ad }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    <!-- Tombol Print Rekap di sebelah kanan dropdown -->
-                    @if ($rows && $rows->count() > 0)
-                        <button class="btn btn-warning no-print" id="btn-print-now" onclick="printPreview()">
-                            PRINT REKAP
-                        </button>
-                    @endif
-
-                </form>
-            </div>
-
-
-            <div class="d-flex gap-2">
-
-
-                <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        Menu
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock') }}">Monitoring Stock</a></li>
-                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock/data-compare') }}">Dashboard Stock
-                                Opname</a></li>
-                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock/tag-kso') }}">Kartu Stock
-                                Opname</a></li>
-                        <li>
-                            <a class="dropdown-item" href="{{ url('/monitoring-stock/rekap-kso') }}">
-                                Rekap Stock Opname
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="no-print my-2 border-bottom border-2"></div>
-
 
         {{-- TABLE --}}
         @if (!empty($rows) && $rows->count() > 0)
@@ -239,7 +187,8 @@
                             <!-- Kolom 2.5 -->
                             <td
                                 style="width: 200px; padding: 5px; line-height: 1; text-align: center; border-left: 1px solid black; border-right: 1px solid black; border-bottom: 1px solid black; border-top: none;">
-                                {{ $penghitung->oprname ?? 'Semua PIC' }}
+                                <!-- Menampilkan nama asli operator, bukan ID kodenya -->
+                                {{ $rows->first()->oprname ?? ($pic_map[$selectedPIC]->oprname ?? 'Semua PIC') }}
                             </td>
 
                             <!-- Kolom 2.6 -->
@@ -297,7 +246,7 @@
                     <tbody>
                         @php $totalQty = 0; @endphp
                         @foreach ($rows as $index => $row)
-                            @php $totalQty += $row->qty ?? 0; @endphp
+                            @php $totalQty +=$row->QtyStk ?? 0; @endphp
                             <tr style="border: 1px solid black;">
                                 <td style="border: 1px solid black; text-align: center;">{{ $index + 1 }}</td>
                                 <td style="border: 1px solid black; text-align: center;">{{ $row->nokso ?? '-' }}</td>
@@ -306,7 +255,7 @@
                                     {{ $row->deskripsi ?? '-' }}
                                 </td>
                                 <td style="border: 1px solid black; text-align: right; padding-right: 10px;">
-                                    {{ number_format($row->qty ?? 0) }}</td>
+                                    {{ number_format($row->QtyStk ?? 0) }}</td>
                                 <td style="border: 1px solid black; text-align: left;"></td>
                             </tr>
                         @endforeach
@@ -332,7 +281,7 @@
 
     {{-- JAVASCRIPT --}}
     <script>
-        const picSelect = document.getElementById('picSelect');
+        const picSelect = document.getElementById('picName');
         const auditorSelect = document.getElementById('auditorSelect');
         const picForm = document.getElementById('picForm');
 
@@ -484,10 +433,6 @@
             // Munculkan kembali teks <strong>
             document.getElementById('display-mode').style.display = 'block';
         }
-
-        window.onload = function() {
-            window.print();
-        };
     </script>
 
 

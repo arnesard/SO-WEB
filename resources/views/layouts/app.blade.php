@@ -64,15 +64,15 @@
                     </li>
                     <a class="nav-link {{ request()->is('data_master/report-daily') ? 'active fw-bold' : '' }}"
                         href="{{ route('data_master.report') }}">
-                        <i data-lucide="package" size="18"></i> Data Master
+                        <i data-lucide="package" size="18"></i> Data Master BPW
                     </a>
                     </li>
-                    <li class="nav-item"><a class="nav-link {{ request()->is('stock-barcode') ? 'active' : '' }}"
+                    {{-- <li class="nav-item"><a class="nav-link {{ request()->is('stock-barcode') ? 'active' : '' }}"
                             href="{{ route('stock.barcode') }}"><i data-lucide="qr-code" size="18"></i>Barcode</a>
-                    </li>
-                    <li class="nav-item"><a class="nav-link {{ request()->is('appkso') ? 'active' : '' }}"
+                    </li> --}}
+                    {{-- <li class="nav-item"><a class="nav-link {{ request()->is('appkso') ? 'active' : '' }}"
                             href="{{ route('appkso.index') }}"><i data-lucide="clipboard-check" size="18"></i>
-                            APPKSO</a></li>
+                            APPKSO</a></li> --}}
 
                 </ul>
             </div>

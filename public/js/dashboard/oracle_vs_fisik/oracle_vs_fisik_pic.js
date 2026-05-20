@@ -32,10 +32,16 @@ window.loadMasterPicDataFromServer = function () {
     });
 };
 
-// 2. Render Baris HTML Berbasis Memori Cache + Filter Gudang (Mendukung Semua Gudang)
+// 2. Render Baris HTML Berbasis Memori Cache + Filter Gudang + Live Search
 window.renderMasterPicTableHtml = function () {
     let tbody = $("#tbody-master-pic-rows");
     let filterWh = $("#filter-view-pic-wh").val();
+
+    // Ambil nilai dari kolom pencarian, jadikan huruf kecil semua biar pencariannya gak sensitif huruf besar/kecil
+    let searchQuery = $("#search-pic-global").val()
+        ? $("#search-pic-global").val().toLowerCase()
+        : "";
+
     if (!tbody || tbody.length === 0) return;
 
     let html = "";
@@ -46,13 +52,28 @@ window.renderMasterPicTableHtml = function () {
             : window.cachedAuditorTeamData;
 
     targetDataset.forEach((row) => {
-        // 🎯 KUNCI UTAMA: Jika filterWh kosong (""), variabel matchWh akan otomatis bernilai TRUE untuk semua baris!
+        // Logika 1: Cek Gudang
         let matchWh =
             !filterWh ||
             filterWh === "" ||
             row.warehouse.toLowerCase() === filterWh.toLowerCase();
 
-        if (matchWh) {
+        // Logika 2: Cek Pencarian (Penneng ATAU Nama ATAU Lot)
+        let matchSearch = true;
+        if (searchQuery !== "") {
+            let textPenneng = (row.no_penneng || "").toLowerCase();
+            let textNama = (row.nama || "").toLowerCase();
+            let textLot = (row.lot || "").toLowerCase();
+
+            // Kalau salah satu cocok, jadikan TRUE
+            matchSearch =
+                textPenneng.includes(searchQuery) ||
+                textNama.includes(searchQuery) ||
+                textLot.includes(searchQuery);
+        }
+
+        // Kalau gudang cocok DAN pencarian cocok, baru dirender html-nya
+        if (matchWh && matchSearch) {
             html += `
                 <tr>
                     <td class="text-center font-monospace text-muted py-2">${loopIndex}</td>
@@ -77,15 +98,21 @@ window.renderMasterPicTableHtml = function () {
         }
     });
 
+    // Handle kalau gak ada data yang cocok
     if (html === "") {
         let whText = filterWh
             ? "Gudang " + filterWh.toUpperCase()
             : "Semua Gudang";
-        html = `<tr><td colspan="7" class="text-center text-muted py-4">Belum ada Personel [TIM ${window.currentActiveRoleTab}] yang terdaftar di area ${whText} bro.</td></tr>`;
+
+        if (searchQuery !== "") {
+            html = `<tr><td colspan="7" class="text-center text-muted py-4">Waduh, data dengan kata kunci "<b>${$("#search-pic-global").val()}</b>" tidak ditemukan di area ${whText} bro.</td></tr>`;
+        } else {
+            html = `<tr><td colspan="7" class="text-center text-muted py-4">Belum ada Personel [TIM ${window.currentActiveRoleTab}] yang terdaftar di area ${whText} bro.</td></tr>`;
+        }
     }
 
     tbody.html(html);
-    if (window.lucide) window.lucide.createIcons(); // Selalu render ulang ikon Lucide
+    if (window.lucide) window.lucide.createIcons();
 };
 
 // Switch Tab Antara Tim Penghitung (Stock) vs Tim Pemeriksa (Auditor)

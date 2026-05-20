@@ -163,4 +163,20 @@ class OracleVsFisikAppksoController extends Controller
             ], 500);
         }
     }
+
+    // Tambahkan method ini di dalam class OracleVsFisikAppksoController
+    public function getWarehouseList()
+    {
+        $warehouses = DB::table('so_all_wh_appkso_db')
+            ->select('warehouse')
+            ->distinct()
+            ->whereNotNull('warehouse')
+            ->orderBy('warehouse', 'asc')
+            ->pluck('warehouse');
+
+        return response()->json([
+            'status' => 'success',
+            'warehouses' => $warehouses
+        ]);
+    }
 }

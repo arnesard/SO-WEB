@@ -407,6 +407,12 @@
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="camera" class="me-1" style="width: 12px; height: 12px;"></i> SNAPSHOT
                             </button>
+                            <a href="{{ route('appkso.index') }}"
+                                class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
+                                style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
+                                <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> APPKSO AUTO
+                                BPW
+                            </a>
                         </div>
                         <button onclick="refreshCurrentFisikPage()"
                             class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"

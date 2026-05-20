@@ -11,7 +11,8 @@ $(document).ready(function () {
         let viewWhSelect = $("#appkso-view-warehouse");
         if (!viewWhSelect || viewWhSelect.length === 0) return;
 
-        $.get("/oracle-fisik/tagstock/init-filters", function (res) {
+        // Ganti URL ke route yang baru saja didaftarkan
+        $.get("/oracle-fisik/appkso/get-warehouses", function (res) {
             if (res.status === "success") {
                 viewWhSelect.html(
                     '<option value="" selected>⚠️ PILIH GUDANG</option>',
@@ -273,7 +274,7 @@ $(document).ready(function () {
                     !row.pattern_name ||
                     row.pattern_name === "" ||
                     String(row.pattern_name).toLowerCase() ===
-                    "kosong / unmapped"
+                        "kosong / unmapped"
                 );
             });
         } else {
@@ -710,8 +711,8 @@ $(document).ready(function () {
                         $(".swal2-title").text("Menyuntik Database");
                         $(".swal2-content").html(
                             "Sedang membilas data lama & menyuntikkan data APPKSO baru masal...<br><strong>Gudang Target: " +
-                            uploadWh +
-                            "</strong>",
+                                uploadWh +
+                                "</strong>",
                         );
 
                         $.ajax({

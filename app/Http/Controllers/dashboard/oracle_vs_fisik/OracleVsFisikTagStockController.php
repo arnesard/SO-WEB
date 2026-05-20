@@ -44,7 +44,7 @@ class OracleVsFisikTagStockController extends Controller
             $operators = DB::table('so_all_wh_pic_stock_db')
                 ->where('warehouse', $warehouse)
                 ->select('id', 'no_penneng', 'nama', 'gedung', 'lot')
-                ->orderBy('no_penneng', 'asc')
+                ->orderBy('nama', 'asc')
                 ->get();
 
             return response()->json([

@@ -104,6 +104,14 @@
                     <option value="DPW">DPW</option>
                     <option value="RPW">RPW</option>
                 </select>
+                {{-- Input Search Baru --}}
+                <div class="input-group input-group-sm shadow-sm" style="width: 250px;">
+                    <span class="input-group-text bg-light border-primary text-primary fw-bold">
+                        <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                    </span>
+                    <input type="text" id="search-pic-global" class="form-control fw-bold border-primary"
+                        placeholder="Cari Penneng / Nama / Lot..." onkeyup="window.renderMasterPicTableHtml()">
+                </div>
             </div>
         </div>
 

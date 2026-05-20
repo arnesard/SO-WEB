@@ -18,6 +18,7 @@ class Appkso extends Controller
             ->get();
 
         $selected_so = $request->so_name ?? ($list_kso->first()->so_name ?? null);
+        session(['so_name' => $selected_so]);
 
         // 2. Olah Summary (mysql_second)
         $query_summary = DB::connection('mysql_second')->table('cntso');
@@ -404,31 +405,83 @@ class Appkso extends Controller
         </body>
         </html>';
     }
-    public function rekapKso()
+    public function rekapKso(Request $request)
     {
-        $all = DB::connection('mysql_second')->table('cntso')->get();
+        $selectedSo = $request->so_name ?? session('so_name');
+        $selectedPIC = $request->pic_name;
+        $selectedAuditor = $request->auditor ?? null;
 
-        $pics = $all->pluck('opr')->unique()->values();
+        // 1. QUERY MASTER UNTUK DROPDOWN & MAPPING (Ambil data berdasarkan SO_NAME saja, jangan di-filter PIC dulu!)
+        $masterActivities = DB::connection('mysql_second')
+            ->table('cntso as c')
+            ->leftJoin('bcmcfgv1.oprbld as o', 'c.opr', '=', 'o.oprcode')
+            ->select('c.opr', 'o.oprname', 'c.ItemCode')
+            ->when($selectedSo, function ($q) use ($selectedSo) {
+                $q->where('c.so_name', $selectedSo);
+            })
+            ->get();
 
-        $pic_nokso_map = $all
-            ->groupBy('opr')
-            ->map(fn($items) => $items->pluck('NoDoc')->unique()->values());
+        // Ambil semua daftar list PIC unik untuk dropdown agar tidak hilang saat dipilih
+        $pics = $masterActivities->pluck('opr')->unique()->values();
+        $pic_map = $masterActivities->keyBy('opr');
 
-        $auditor = $all->pluck('auditor')->unique()->values();
 
-        return view('appkso.rekap_kso', [
-            'pics' => $pics,
-            'pic_list' => $pics,
-            'pic_nokso_map' => $pic_nokso_map,
+        // 2. QUERY UTAMA UNTUK ISI TABEL REKAP (Baru di-filter pakai PIC jika ada)
+        $activitiesQuery = DB::connection('mysql_second')
+            ->table('cntso as c')
+            ->leftJoin('bcmcfgv1.oprbld as o', 'c.opr', '=', 'o.oprcode')
+            ->select(
+                'c.ydate_shift',
+                'c.opr',
+                'o.oprname',
+                'c.NoDoc as nokso',
+                'c.ItemCode as item',
+                'c.QtyStk'
+            )
+            ->when($selectedSo, function ($q) use ($selectedSo) {
+                $q->where('c.so_name', $selectedSo);
+            })
+            // Filter PIC baru ditaruh di sini untuk data baris tabel saja
+            ->when($selectedPIC, function ($q) use ($selectedPIC) {
+                $q->where('c.opr', $selectedPIC);
+            });
 
-            // 🔥 TAMBAHKAN INI
-            'rows' => collect(),
-            'selectedPIC' => null,
-            'selectedAuditor' => null,
-            'auditor' => $auditor,
-        ]);
+        $activities = $activitiesQuery->get();
+
+
+        // 3. MAPPING DESKRIPSI BARANG
+        $itemCodes = $activities->pluck('item')->unique()->toArray();
+
+        $master_map = DB::connection('mysql')
+            ->table('master_items')
+            ->select('item_code_desc', 'description')
+            ->whereIn('item_code_desc', $itemCodes)
+            ->get()
+            ->keyBy('item_code_desc');
+
+        // Mapping deskripsi ke baris tabel ($rows) + Amankan nama operator
+        $rows = $activities->map(function ($row) use ($master_map, $pic_map) {
+            $row->deskripsi = $master_map[$row->item]->description ?? 'N/A di Master';
+
+            // Jika oprname di row kosong, ambil dari map masterActivities
+            if (empty($row->oprname)) {
+                $row->oprname = $pic_map[$row->opr]->oprname ?? $row->opr;
+            }
+            return $row;
+        });
+
+        // Sementara auditor dikosongkan sesuai bawaan code lama lu
+        $auditor = collect([]);
+
+        return view('appkso.rekap_kso', compact(
+            'rows',
+            'pics',
+            'auditor',
+            'selectedPIC',
+            'selectedAuditor',
+            'pic_map'
+        ));
     }
-
     public function generateRekapPreview(Request $request)
     {
         try {
@@ -485,5 +538,35 @@ class Appkso extends Controller
                 'message' => $e->getMessage()
             ]);
         }
+    }
+
+    public function saveSessionDate(Request $request)
+    {
+        session([
+            'tgl_so' => $request->tgl_so
+        ]);
+
+        return back();
+    }
+
+    private function baseCntsoQuery($selected_so = null)
+    {
+        return DB::connection('mysql_second')
+            ->table('cntso as c')
+            ->leftJoin('bcmcfgv1.oprbld as o', 'c.opr', '=', 'o.oprcode')
+            ->select(
+                'c.ydate_shift',
+                'c.opr',
+                'o.oprname',
+                'c.NoDoc',
+                'c.ItemCode',
+                'c.QtyStk',
+                'c.status',
+                'c.txndate',
+                'c.so_name'
+            )
+            ->when($selected_so, function ($q) use ($selected_so) {
+                return $q->where('c.so_name', $selected_so);
+            });
     }
 }
