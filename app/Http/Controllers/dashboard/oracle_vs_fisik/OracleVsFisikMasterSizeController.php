@@ -53,9 +53,10 @@ class OracleVsFisikMasterSizeController extends Controller
             $type     = !empty(trim($request->type))     ? trim($request->type)     : '-';
             $brand    = !empty(trim($request->brand))    ? trim($request->brand)    : '-';
             $category = !empty(trim($request->category)) ? trim($request->category) : '-';
+            $grade  = !empty(trim($request->grade))  ? trim($request->grade)  : '-';
 
             // Bangun pattern otomatis berdasarkan 4 variabel di atas
-            $patternParts = [$product, $type, $brand, $category];
+            $patternParts = [$grade, $product, $type, $brand, $category];
 
             // Filter menghilangkan tanda strip untuk pembentukan teks pattern murni
             $cleanParts = array_filter($patternParts, function ($value) {
@@ -94,8 +95,9 @@ class OracleVsFisikMasterSizeController extends Controller
             $type     = !empty(trim($request->type))     ? trim($request->type)     : '-';
             $brand    = !empty(trim($request->brand))    ? trim($request->brand)    : '-';
             $category = !empty(trim($request->category)) ? trim($request->category) : '-';
+            $grade  = !empty(trim($request->grade))  ? trim($request->grade)  : '-';
 
-            $patternParts = [$product, $type, $brand, $category];
+            $patternParts = [$grade, $product, $type, $brand, $category];
             $cleanParts = array_filter($patternParts, fn($v) => !empty($v) && $v !== '-');
             $pattern = implode(' ', $cleanParts);
 

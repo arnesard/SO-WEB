@@ -368,15 +368,10 @@
                     style="background-color: #fe6807; color: #fff; flex-shrink: 0;">
                     <h5 class="card-title mb-0 small fw-bold text-uppercase d-flex align-items-center">
                         <i data-lucide="monitor-check" class="me-2" style="width: 18px; height: 18px;"></i>
-                        Dashboard Stock Oracle Vs Aktual Fisik
+                        Stock Oracle Vs Aktual Fisik
                     </h5>
                     <div class="d-flex align-items-center gap-2">
                         <div class="btn-group me-2">
-                            <button id="btn-default" onclick="switchFisikContent('default')"
-                                class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
-                                style="font-size: 9px; border-width: 1.5px;">
-                                <i data-lucide="layout" class="me-1" style="width: 12px; height: 12px;"></i> DASHBOARD
-                            </button>
                             <button id="btn-master_size" onclick="switchFisikContent('master_size')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
@@ -407,12 +402,25 @@
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="camera" class="me-1" style="width: 12px; height: 12px;"></i> SNAPSHOT
                             </button>
-                            <a href="{{ route('appkso.index') }}"
+                            {{-- <a href="{{ route('appkso.index') }}"
                                 class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
                                 style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
                                 <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> APPKSO AUTO
                                 BPW
-                            </a>
+                            </a> --}}
+                            <button id="btn-default" onclick="switchFisikContent('default')"
+                                class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
+                                style="font-size: 9px; border-width: 1.5px;">
+                                <i data-lucide="layout" class="me-1" style="width: 12px; height: 12px;"></i> DASHBOARD
+                            </button>
+                            <button id="btn-progress" onclick="switchFisikContent('progress')"
+                                class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
+                                style="font-size: 9px; border-width: 1.5px;">
+
+                                <i data-lucide="activity" class="me-1" style="width: 12px; height: 12px;"></i>
+
+                                PROGRESS
+                            </button>
                         </div>
                         <button onclick="refreshCurrentFisikPage()"
                             class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
@@ -522,7 +530,10 @@
 
             if (sectionId === 'section-oracle-barcode' && typeof myChart !== 'undefined') {
                 setTimeout(() => {
-                    myChart.resize();
+                    // Validasi objeknya dulu sebelum manggil method-nya
+                    if (myChart) {
+                        myChart.resize();
+                    }
                 }, 300);
             }
         }
@@ -567,6 +578,11 @@
                     container.innerHTML = html;
                     if (typeof lucide !== 'undefined') lucide.createIcons();
 
+                    // Tambahkan kondisi ini untuk Dashboard Fisik Utama
+                    if (menu === 'default') {
+                        $.getScript("{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_dashboard.js') }}");
+                    }
+
                     // ENGINE AUTOMATION INJECTOR SCRIPT SUB-MENU
                     if (menu === 'master_size') {
                         $.getScript("{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_master_size.js') }}").done(
@@ -594,6 +610,12 @@
                         let appksoJsUrl = "{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_appkso.js') }}";
                         $.getScript(excelLibUrl).done(function() {
                             $.getScript(appksoJsUrl);
+                        });
+                    } else if (menu === 'oracle_snapshot') {
+                        let excelLibUrl = "{{ asset('js/excel.min.js') }}";
+                        let snapshotJsUrl = "{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_snapshot.js') }}";
+                        $.getScript(excelLibUrl).done(function() {
+                            $.getScript(snapshotJsUrl);
                         });
                     }
 

@@ -300,6 +300,13 @@ let dataForExport = {
 
 // --- FUNGSI TAMPIL DETAIL PATTERN ---
 window.showDetail = function (pattern) {
+    const modalElement = document.getElementById("modalDetailPattern");
+
+    // 🚀 FIX 1: Cabut modal dari layout trap, pindahkan langsung ke root body
+    if (modalElement.parentNode !== document.body) {
+        document.body.appendChild(modalElement);
+    }
+
     const title = document.getElementById("modalTitlePattern");
     const statsArea = document.getElementById("sku-stats");
     const contentArea = document.getElementById("modalDetailContent");
@@ -312,9 +319,20 @@ window.showDetail = function (pattern) {
             <span class="fw-bold">Sedang memproses data pattern ${pattern}...</span>
         </div>`;
 
-    const modalElement = document.getElementById("modalDetailPattern");
-    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-    modal.show();
+    // 🚀 FIX 2: Eksekusi Modal dengan aman (Support BS5 & Fallback BS4)
+    try {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.show();
+    } catch (e) {
+        if (typeof $ !== "undefined") {
+            $(modalElement).modal("show");
+        } else {
+            console.error(
+                "Gagal membuka modal. Pastikan Bootstrap JS terload.",
+                e,
+            );
+        }
+    }
 
     const params = new URLSearchParams({
         pattern: pattern,
@@ -324,11 +342,14 @@ window.showDetail = function (pattern) {
     }).toString();
 
     fetch(`/oracle-barcode/detail-pattern?${params}`)
-        .then((res) => res.json())
+        .then((res) => {
+            if (!res.ok) throw new Error("HTTP Status " + res.status);
+            return res.json();
+        })
         .then((res) => {
             title.innerText = res.pattern;
             dataForExport.pattern = res.pattern;
-            dataForExport.resume = res.details; // Simpan ke global buat Excel
+            dataForExport.resume = res.details;
 
             let skuTotal = 0,
                 skuPlus = 0,
@@ -363,7 +384,6 @@ window.showDetail = function (pattern) {
                 skuTotal++;
             });
 
-            // 1. RENDER STATS & TOMBOL EXCEL DI HEADER
             statsArea.innerHTML = `
                 <button onclick="runExportResumeOnly('${res.pattern}')" class="btn btn-success btn-xs fw-bold me-3 shadow-sm">
                     <i class="fa-solid fa-file-excel me-1"></i> EXPORT EXCEL
@@ -373,7 +393,6 @@ window.showDetail = function (pattern) {
                 <span class="badge bg-primary small shadow-sm">+ ${skuPlus} SKU</span>
             `;
 
-            // 2. RENDER LAYOUT SPLIT DI BODY
             contentArea.innerHTML = `
                 <div class="row g-3 h-100">
                     <div class="col-md-6 h-100 d-flex flex-column">
@@ -407,8 +426,85 @@ window.showDetail = function (pattern) {
                         </div>
                     </div>
                 </div>`;
-
             if (window.lucide) lucide.createIcons();
+        })
+        .catch((err) => {
+            // 🚀 FIX 3: Tangkap error agar UI tidak frozen di state loading
+            contentArea.innerHTML = `
+                <div class="d-flex flex-column justify-content-center align-items-center h-100">
+                    <div class="alert alert-danger fw-bold border-0 shadow-sm text-center">
+                        <i class="fa-solid fa-triangle-exclamation mb-2 fs-3 d-block"></i>
+                        Gagal memuat detail pattern. <br><span class="small fw-normal">${err.message}</span>
+                    </div>
+                </div>`;
+            console.error("Pattern Fetch Error:", err);
+        });
+};
+
+window.showDeepDetail = function (itemCodeDesc) {
+    const modalElement = document.getElementById("modalDeepDetail");
+
+    // 🚀 Pindahkan ke body
+    if (modalElement.parentNode !== document.body) {
+        document.body.appendChild(modalElement);
+    }
+
+    const tableBody = document.getElementById("deepDetailTableBody");
+    const titleElement = document.getElementById("deepDetailTitle");
+    const exportBtn = document.getElementById("btnExportDeepExcel");
+
+    titleElement.innerText = itemCodeDesc;
+    tableBody.innerHTML =
+        '<tr><td colspan="6" class="text-center py-4"><div class="spinner-border text-success spinner-border-sm me-2"></div> Memuat data lokasi...</td></tr>';
+
+    try {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.show();
+    } catch (e) {
+        if (typeof $ !== "undefined") $(modalElement).modal("show");
+    }
+
+    const params = new URLSearchParams({
+        item_code_desc: itemCodeDesc,
+        date: selectedDate || "",
+        month: currentMonth + 1,
+        year: currentYear,
+    }).toString();
+
+    fetch(`/oracle-barcode/deep-detail?${params}`)
+        .then((res) => {
+            if (!res.ok) throw new Error("HTTP Status " + res.status);
+            return res.json();
+        })
+        .then((data) => {
+            dataForExport.breakdown = data;
+            tableBody.innerHTML = "";
+
+            if (!data || data.length === 0) {
+                tableBody.innerHTML =
+                    '<tr><td colspan="6" class="text-center py-3 text-muted">Tidak ada data lokasi untuk item ini.</td></tr>';
+                return;
+            }
+
+            data.forEach((row, i) => {
+                tableBody.innerHTML += `
+                <tr>
+                    <td class="text-center">${i + 1}</td>
+                    <td>${row.loc_code}</td>
+                    <td>${row.rack_code}</td>
+                    <td>${itemCodeDesc}</td>
+                    <td>${row.description || "-"}</td>
+                    <td class="text-end fw-bold text-success">${parseInt(row.qty).toLocaleString("id-ID")}</td>
+                </tr>`;
+            });
+
+            if (exportBtn) {
+                exportBtn.onclick = () => runExportFinal(itemCodeDesc);
+            }
+        })
+        .catch((err) => {
+            tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-3 text-danger fw-bold">Gagal mengambil data lokasi: ${err.message}</td></tr>`;
+            console.error("Deep Detail Fetch Error:", err);
         });
 };
 
@@ -556,52 +652,6 @@ async function runExportResumeOnly(patternName) {
     }
 }
 
-window.showDeepDetail = function (itemCodeDesc) {
-    const tableBody = document.getElementById("deepDetailTableBody");
-    const titleElement = document.getElementById("deepDetailTitle");
-    const exportBtn = document.getElementById("btnExportDeepExcel"); // Pastikan ID ini ada di Blade
-
-    titleElement.innerText = itemCodeDesc;
-    tableBody.innerHTML =
-        '<tr><td colspan="6" class="text-center py-3">Loading...</td></tr>';
-
-    const modal = new bootstrap.Modal(
-        document.getElementById("modalDeepDetail"),
-    );
-    modal.show();
-
-    const params = new URLSearchParams({
-        item_code_desc: itemCodeDesc,
-        date: selectedDate || "",
-        month: currentMonth + 1,
-        year: currentYear,
-    }).toString();
-
-    fetch(`/oracle-barcode/deep-detail?${params}`)
-        .then((res) => res.json())
-        .then((data) => {
-            dataForExport.breakdown = data; // Simpan data breakdown lokasi
-            tableBody.innerHTML = "";
-
-            data.forEach((row, i) => {
-                tableBody.innerHTML += `
-                <tr>
-                    <td class="text-center">${i + 1}</td>
-                    <td>${row.loc_code}</td>
-                    <td>${row.rack_code}</td>
-                    <td>${itemCodeDesc}</td>
-                    <td>${row.description || "-"}</td>
-                    <td class="text-end fw-bold text-success">${parseInt(row.qty).toLocaleString("id-ID")}</td>
-                </tr>`;
-            });
-
-            // Set klik tombol export - Pakai pengecekan null biar gak error console
-            if (exportBtn) {
-                exportBtn.onclick = () => runExportFinal(itemCodeDesc);
-            }
-        });
-};
-
 async function runExportFinal(itemCodeDesc) {
     // Pastikan library lu terdeteksi (Ganti 'ExcelJS' dengan objek utama library lu jika berbeda)
     const ExcelLib =
@@ -709,6 +759,14 @@ async function runExportFinal(itemCodeDesc) {
 // Grafik
 function renderComparisonChart(data) {
     const chartDom = document.getElementById("main-chart");
+
+    if (!chartDom) {
+        console.warn(
+            "System Alert: Elemen #main-chart tidak ditemukan. Rendering grafik dibatalkan.",
+        );
+        return;
+    }
+
     if (myChart) myChart.dispose();
     myChart = echarts.init(chartDom);
 

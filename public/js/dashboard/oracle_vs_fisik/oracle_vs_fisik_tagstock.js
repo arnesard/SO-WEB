@@ -59,10 +59,11 @@ $(document)
 
                 res.operators.forEach((op) => {
                     opSelect.append(`
-        <option value="${op.id}"
+        <option value="${op.no_penneng}"
+            data-nama="${op.nama}"
             data-gedung="${op.gedung}"
-            data-lot="${op.lot}">
-            ${op.nama} (${op.no_penneng}) <!-- Format: Nama (Penneng) -->
+            data-lot="${op.combined_lot}">
+            ${op.nama} (${op.no_penneng})
         </option>
     `);
                 });

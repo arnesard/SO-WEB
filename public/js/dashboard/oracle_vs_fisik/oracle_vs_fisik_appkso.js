@@ -274,7 +274,7 @@ $(document).ready(function () {
                     !row.pattern_name ||
                     row.pattern_name === "" ||
                     String(row.pattern_name).toLowerCase() ===
-                        "kosong / unmapped"
+                    "kosong / unmapped"
                 );
             });
         } else {
@@ -390,15 +390,18 @@ $(document).ready(function () {
             let tglSoInput = $("#modal-filter-print-tgl-so").val();
             let tglPosisiInput = $("#modal-filter-print-tgl-posisi").val();
 
-            // Konversi format string tanggal inputan HTML (YYYY-MM-DD menjadi DD-MM-YYYY)
+            // 🔧 FIX KUNCI: Konversi format tanggal dari YYYY-MM-DD (HTML date input) ke DD/MM/YY
             let formatTgl = (dateStr) => {
                 if (!dateStr) return "-";
-                let parts = dateStr.split("-");
-                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                if (!dateStr.includes("-")) return dateStr;
+
+                let [y, m, d] = dateStr.split("-");
+                let tahun2digit = y.slice(-2); // Ambil 2 digit terakhir tahun
+                return `${d}/${m}/${tahun2digit}`;
             };
 
             let displayTglSo = formatTgl(tglSoInput);
-            let displayTglPosisi = formatTgl(tglPosisiInput);
+            let displayTglPosisi = formatTgl(tglPosisiInput);;
 
             // Filter data array master detail client-side
             let baseRows = window.cachedAppksoDetail || [];
@@ -462,11 +465,11 @@ $(document).ready(function () {
                 filterOpr === "ALL" ? "Semua PIC Lapangan" : textOprSelected;
 
             // Buka lembar tab window anyar untuk memicu mesin printer browser Edge
-            let printWindow = window.open(
-                "",
-                "_blank",
-                "width=1200,height=800",
-            );
+            let printWindow = window.open("", "_blank");
+            printWindow.document.open();
+            printWindow.document.write("");
+            printWindow.document.close();
+            printWindow.document.open();
 
             printWindow.document.write(`
             <html>
@@ -711,8 +714,8 @@ $(document).ready(function () {
                         $(".swal2-title").text("Menyuntik Database");
                         $(".swal2-content").html(
                             "Sedang membilas data lama & menyuntikkan data APPKSO baru masal...<br><strong>Gudang Target: " +
-                                uploadWh +
-                                "</strong>",
+                            uploadWh +
+                            "</strong>",
                         );
 
                         $.ajax({
@@ -897,9 +900,20 @@ $(document).ready(function () {
             let picCode = $("#modal-kso-print-pic").val();
             let docFrom = $("#modal-kso-print-doc-from").val();
             let docTo = $("#modal-kso-print-doc-to").val();
-            let tglManual = $("#modal-kso-print-tanggal-manual")
-                .val()
-                .toUpperCase();
+
+            // 🔧 FIX: Konversi tanggal dari YYYY-MM-DD ke DD / BULAN / YYYY format manual
+            let tglInputRaw = $("#modal-kso-print-tanggal-manual").val();
+            let tglManual = "";
+
+            if (tglInputRaw) {
+                let [tahun, bulan, tanggal] = tglInputRaw.split("-");
+                let bulanNama = [
+                    "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI",
+                    "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"
+                ];
+                let nmBulan = bulanNama[parseInt(bulan) - 1];
+                tglManual = `${parseInt(tanggal)} / ${nmBulan} / ${tahun}`;
+            }
 
             let baseRows = window.cachedAppksoDetail || [];
             let matchedCards = baseRows.filter((row) => {
@@ -929,6 +943,17 @@ $(document).ready(function () {
                 document.getElementById("modal-print-kso-gateway"),
             );
             if (ksoModalEl) ksoModalEl.hide();
+
+            // 🔧 Mapping Gudang ke Plant Code
+            let plantMap = {
+                "APW": "A",
+                "BPW": "B",
+                "DPW": "D",
+                "RPW": "R"
+            };
+
+            let currentWh = $("#appkso-view-warehouse").val();
+            let plantCode = plantMap[currentWh] || "B"; // Default B kalau gak ketemu
 
             let cardsHTML = "";
 
@@ -1009,7 +1034,7 @@ $(document).ready(function () {
                             <td colspan="4" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PT GAJAH TUNGGAL Tbk</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; white-space: nowrap; font-family: 'Times New Roman', Times, serif;">BARANG MILIK PLANT</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; white-space:nowrap; font-family:'Times New Roman', Times, serif;">
-                                <span style="display:inline-block; width:100px; margin-left:60px; border-bottom:1px solid #000; padding-bottom:2px;">: <b>B</b></span>
+                                <span style="display:inline-block; width:100px; margin-left:60px; border-bottom:1px solid #000; padding-bottom:2px;">: <b>${plantCode}</b></span>
                             </td>
                         </tr>
                         <tr>
@@ -1033,7 +1058,7 @@ $(document).ready(function () {
                         <tr>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">GRADE</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">: <b>${gradeStr}</b></td>
-                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PLANT : <b>B</b></td>
+                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PLANT : <b>${plantCode}</b></td>
                             <td colspan="2" style="border:none; font-weight:bold; padding-bottom:1px; text-align:center; text-indent:5px;">
                                 <div id="puluhan_ribu">${buildCircleRow(pRibu)}</div>
                             </td>
@@ -1070,13 +1095,19 @@ $(document).ready(function () {
                             </td>
                         </tr>
                         <tr style="border-bottom: 2px solid black;">
-                            <td colspan="4" style="border:none;"></td>
-                            <td colspan="2" style="border:none; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">LEMBAR UNTUK GUDANG</td>
+                            <td colspan="4"></td>
+                            <td colspan="2"
+                                style="border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                LEMBAR UNTUK GUDANG</td>
                         </tr>
-                        <tr>
-                            <td colspan="2" style="padding-top:25px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif; font-size:12px;">DIHITUNG OLEH</td>
-                            <td colspan="2" style="padding-top:35px; border:none;"></td>
-                            <td colspan="2" style="padding-top:25px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif; font-size:12px;">DIPERIKSA OLEH</td>
+                      <tr>
+                            <td colspan="2"
+                                style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                DIHITUNG OLEH</td>
+                            <td colspan="2" style="padding-top:25px "></td>
+                            <td colspan="2"
+                                style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                DIPERIKSA OLEH</td>
                         </tr>
                         <tr>
                             <td style="width:10%;padding-bottom:50px; border:none;"></td><td style="width:10%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td>
@@ -1092,13 +1123,17 @@ $(document).ready(function () {
                             <td colspan="2" style="border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;"><div style="width:60%; margin:1px auto; border-top:2px solid #000; text-align:center;">TEAM S.O./AUDITOR</div></td>
                         </tr>
                         <tr>
-                            <td colspan="6" style="position: relative; border:none !important;"><img src="/images/garis_gunting.png" alt="Garis Gunting" style="width: 100%; height: 50px; position: relative; top: 14px;"</td>
+                            <td colspan="6" style="position: relative; border:none !important;"><img src="/images/garis_gunting.png" alt="Garis Gunting" style="width: 100%; height: 50px; position: relative; top: 27px;"></td>
                         </tr>
                      </table>
 
-                    <table class="mb-1" style="width:100%; border-collapse:collapse; font-size:14px; border:none !important; margin-top:px;">
+                    <table class="mb-1" style="width:100%; border-collapse:collapse; font-size:14px; border: none !important;">
+                       <td colspan="4" style="border:none; font-size:50px; text-align:left; text-indent:5px; font-weight: normal;">
+                             <span style="visibility:hidden; font-family: 'Libre Barcode 39', cursive;">*${t.item}*</span>
+                        </td>
                         <tr>
-                            <td colspan="6" style="border:none;text-align:center; font-weight:bold; font-size:20px; font-family: 'Times New Roman', Times, serif;">
+                            <td colspan="6"
+                                style="border:none; text-align:center; font-weight:bold; font-size:20px; font-family: 'Times New Roman', Times, serif; position: relative;">
                                 KARTU STOCK OPNAME
                                 <p style="font-size:13px; margin:0; line-height:1; font-family: 'Times New Roman', Times, serif; font-weight: normal;">TANGGAL : ${tglManual}</p>
                                 <p style="font-size:23px; padding-top:10px; line-height:1;margin-bottom:0; font-family: 'Times New Roman', Times, serif;">${gradeStr}</p>
@@ -1108,7 +1143,7 @@ $(document).ready(function () {
                             <td colspan="4" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PT GAJAH TUNGGAL Tbk</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; white-space: nowrap; font-family: 'Times New Roman', Times, serif;">BARANG MILIK PLANT</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; white-space:nowrap; font-family:'Times New Roman', Times, serif;">
-                                <span style="display:inline-block; width:100px; margin-left:60px; border-bottom:1px solid #000; padding-bottom:2px;">: <b>B</b></span>
+                                <span style="display:inline-block; width:100px; margin-left:60px; border-bottom:1px solid #000; padding-bottom:2px;">: <b>${plantCode}</b></span>
                             </td>
                         </tr>
                         <tr>
@@ -1119,7 +1154,9 @@ $(document).ready(function () {
                             </td>
                         </tr>
                         <tr>
-                           <td colspan="4"style="border:none;font-size:50px;text-align:left;text-indent:5px;font-family:'Libre Barcode 39', cursive;font-weight:normal;color: transparent;">${t.item}*</td>
+                            <td colspan="4" style="border:none; font-size:50px; text-align:left; text-indent:5px; font-weight: normal;">
+                             <span style="visibility:hidden; font-family: 'Libre Barcode 39', cursive;">*${t.item}*</span>
+                            </td>
                             <td style="border:none; padding-bottom:1px; text-align:left; vertical-align:top; text-indent:5px; font-family: 'Times New Roman', Times, serif;">NO. INDEX</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; white-space:nowrap; font-family:'Times New Roman', Times, serif; vertical-align:middle;">
                                 <span style="display:inline-block; width:100px; margin-left:60px; border-bottom:1px solid #000; padding-bottom:1px; position: relative; top: -20px;">:</span>
@@ -1129,10 +1166,10 @@ $(document).ready(function () {
                             <td colspan="4" style="border:none; font-weight:bold; padding-bottom:1px; font-size:10px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">${t.item}</td>
                             <td colspan="2" style="border:none; font-weight:bold; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">LINE NUMBER</td>
                         </tr>
-                       <tr>
+                        <tr>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">GRADE</td>
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">: <b>${gradeStr}</b></td>
-                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PLANT : <b>B</b></td>
+                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">PLANT : <b>${plantCode}</b></td>
                             <td colspan="2" style="border:none; font-weight:bold; padding-bottom:1px; text-align:center; text-indent:5px;">
                                 <div id="puluhan_ribu">${buildCircleRow(pRibu)}</div>
                             </td>
@@ -1162,20 +1199,28 @@ $(document).ready(function () {
                             <td style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif;">JUMLAH</td>
                             <td colspan="3" style="border:none; padding-bottom:1px; text-align:left; text-indent:5px; font-family: 'Times New Roman', Times, serif; white-space: nowrap;">
                                 : <b>${Number(t.qty).toLocaleString("id-ID")} PCS</b>
+                               <span style="visibility:hidden; font-family: 'Libre Barcode 39'; font-size:30px; line-height:1; font-weight: normal; margin-left:10px; position: relative; top: 5px;">*${t.qty}*</span>
                             </td>
                             <td colspan="2" style="border:none; font-weight:bold; padding-bottom:1px; text-align:center; text-indent:5px;">
                                 <div id="satuan">${buildCircleRow(sat)}</div>
                             </td>
                         </tr>
                         <tr style="border-bottom: 2px solid black;">
-                            <td colspan="4" style="border:none;"></td>
-                            <td colspan="2" style="border:none; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">LEMBAR UNTUK ARSIP</td>
+                            <td colspan="4"></td>
+                            <td colspan="2"
+                                style="border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                LEMBAR UNTUK ARSIP</td>
                         </tr>
-                        <tr>
-                            <td colspan="2" style="padding-top:25px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif; font-size:12px;">DIHITUNG OLEH</td>
-                            <td colspan="2" style="padding-top:35px; border:none;"></td>
-                            <td colspan="2" style="padding-top:25px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif; font-size:12px;">DIPERIKSA OLEH</td>
+                      <tr>
+                            <td colspan="2"
+                                style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                DIHITUNG OLEH</td>
+                            <td colspan="2" style="padding-top:25px "></td>
+                            <td colspan="2"
+                                style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;">
+                                DIPERIKSA OLEH</td>
                         </tr>
+
                         <tr>
                             <td style="width:10%;padding-bottom:50px; border:none;"></td><td style="width:10%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td><td style="width:20%;padding-bottom:30px; border:none;"></td>
                         </tr>
@@ -1185,11 +1230,12 @@ $(document).ready(function () {
                             <td colspan="2" style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px;"><div style="margin:1px auto; text-align:center; font-family: 'Times New Roman', Times, serif;"><b>..........</b></div></td>
                         </tr>
                         <tr>
-                            <td colspan="2" style="border:none; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;"><div style="width:80%; margin:1px auto; border-top:2px solid #000; text-align:center;">GUDANG BAN</div></td>
+                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;"><div style="width:80%; margin:1px auto; border-top:2px solid #000; text-align:center;">GUDANG BAN</div></td>
                             <td colspan="2" style="border:none;"></td>
-                            <td colspan="2" style="border:none; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;"><div style="width:60%; margin:1px auto; border-top:2px solid #000; text-align:center;">TEAM S.O./AUDITOR</div></td>
+                            <td colspan="2" style="border:none; padding-bottom:1px; text-align:center; text-indent:5px; font-family: 'Times New Roman', Times, serif;"><div style="width:60%; margin:1px auto; border-top:2px solid #000; text-align:center;">TEAM S.O./AUDITOR</div></td>
                         </tr>
-                    </table>
+
+                     </table>
                 </div>
                 `;
             });

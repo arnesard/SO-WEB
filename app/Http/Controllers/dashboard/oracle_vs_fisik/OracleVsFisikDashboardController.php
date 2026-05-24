@@ -3,64 +3,15 @@
 namespace App\Http\Controllers\dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Services\dashboard\DashboardService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\DB; // Pastikan ini ada
+use Illuminate\Support\Facades\Log; // Pastikan ini ada
 
 class OracleVsFisikController extends Controller
 {
-    protected $dashboardService;
-
-    public function __construct(DashboardService $dashboardService)
+    public function index()
     {
-        $this->dashboardService = $dashboardService;
-    }
-
-    /**
-     * Entry point untuk Dashboard Oracle vs Fisik
-     */
-    public function index(Request $request)
-    {
-        // Ambil filter master (Grade, Product, etc)
-        $filters = $this->dashboardService->getMasterFilters();
-
-        // Ambil data pattern unik dari master_items
-        $allPatterns = DB::table('master_items')
-            ->select(DB::raw('DISTINCT (pattern) as pattern_name'))
-            ->whereNotNull('pattern')
-            ->whereRaw("pattern != ''")
-            ->orderBy('pattern', 'asc')
-            ->get()
-            ->pluck('pattern_name')
-            ->toArray();
-
-        // Ambil tanggal transaksi yang tersedia di report daily (Oracle)
-        $oracleDates = DB::table('report_daily_transactions_stk_akhir')
-            ->whereNotNull('transaction_date')
-            ->distinct()
-            ->pluck('transaction_date')
-            ->toArray();
-
-        // Kirim data ke view (AJAX Partial)
-        if ($request->ajax()) {
-            return view('dashboard.oracle_vs_fisik.oracle_vs_fisik', compact('filters', 'allPatterns', 'oracleDates'));
-        }
-
-        // Jika diakses langsung via URL (fallback)
-        return view('dashboard.dashboard', compact('filters', 'allPatterns', 'oracleDates'));
-    }
-
-    /**
-     * Endpoint untuk data grafik/summary perbandingan fisik
-     */
-    public function getFisikData(Request $request)
-    {
-        // Placeholder untuk logic pengambilan data Aktual Fisik nantinya
-        // Lu tinggal tembak tabel yang nyimpen hasil Stock Opname di sini
-        return response()->json([
-            'success' => true,
-            'message' => 'Data fisik siap diolah bro!'
-        ]);
+        return view('dashboard.oracle_vs_fisik.oracle_vs_fisik');
     }
 
     public function switchMenu(Request $request)
@@ -69,12 +20,52 @@ class OracleVsFisikController extends Controller
 
         $viewPath = match ($menu) {
             'master_size'        => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_master_size',
-            'oracle_snapshot'    => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_oracle_snapshot',
+            'oracle_snapshot'    => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_snapshot',
             'barcode_monitoring' => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_barcode_monstock',
+            'tagstock'           => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_tagstock',
             'appkso'             => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_appkso',
-            default              => 'dashboard.oracle_vs_fisik.oracle_vs_fisik',
+            'pic'                => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_pic',
+            'default'            => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_dashboard',
+            default              => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_dashboard',
         };
 
         return view($viewPath)->render();
+    }
+
+    // 🎯 FUNGSI INI YANG DICARI SAMA ROUTE TAPI SEBELUMNYA GAK ADA DI FILE INI 🎯
+    public function getComparisonData(Request $request)
+    {
+        $warehouse = $request->query('warehouse');
+
+        if (empty($warehouse)) {
+            return response()->json(['success' => false, 'message' => 'Gudang tidak ditemukan'], 400);
+        }
+
+        try {
+            $data = DB::table('so_all_wh_master_size_db as m')
+                ->leftJoin('so_all_wh_snapshot_db as s', function ($join) use ($warehouse) {
+                    $join->on('m.item', '=', 's.item')
+                        ->where('s.warehouse', '=', $warehouse);
+                })
+                ->leftJoin('so_all_wh_appkso_db as a', function ($join) use ($warehouse) {
+                    $join->on('m.item', '=', 'a.item')
+                        ->where('a.warehouse', '=', $warehouse);
+                })
+                ->where('m.warehouse', $warehouse)
+                ->select(
+                    'm.pattern',
+                    'm.grade',
+                    DB::raw('SUM(IFNULL(s.qty, 0)) as qty_oracle'),
+                    DB::raw('SUM(IFNULL(a.qty, 0)) as qty_appkso'),
+                    DB::raw('SUM(IFNULL(a.qty, 0)) - SUM(IFNULL(s.qty, 0)) as variance')
+                )
+                ->groupBy('m.pattern', 'm.grade')
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $data]);
+        } catch (\Exception $e) {
+            Log::error("Error saat getComparisonData: " . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

@@ -124,6 +124,15 @@
 
         <!-- Tombol kanan -->
         <div style="display: flex; gap: 8px; align-items: center;">
+<<<<<<< HEAD
+=======
+            <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
+                onclick="window.location.href='/appkso/rekap-kso?pic_name={{ urlencode($selectedPIC ?? '') }}'">
+                <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
+                Print Rekap KSO
+            </button>
+
+>>>>>>> bad3c010e0c3457493b1e20570ac2c6e2f61d196
             @if ($rows && $rows->count() > 0)
                 <div>
                     <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm" id="btn-print-now">

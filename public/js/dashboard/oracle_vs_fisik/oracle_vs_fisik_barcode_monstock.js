@@ -2,7 +2,12 @@
  * Modul Eksklusif Barcode Monstock - Terisolasi Sempurna di File JS Sendiri
  */
 
+/**
+ * Modul Eksklusif Barcode Monstock - Terisolasi Sempurna di File JS Sendiri
+ */
+
 window.cachedMonstockData = [];
+window.cachedLastUpload = {}; // 🚀 Wadah global untuk menyimpan list tanggal upload
 
 window.initBarcodeMonstockMenu = function () {
     window.loadBarcodeMonstockData();
@@ -18,6 +23,7 @@ window.loadBarcodeMonstockData = function () {
 
     $.get("/oracle-fisik/barcode/data", function (response) {
         window.cachedMonstockData = response.master_data || [];
+        window.cachedLastUpload = response.last_upload || {}; // 🚀 Ambil data tanggal upload dari backend
         let filterWh = response.filter_wh || [];
 
         let whSelect = $("#filter-monstock-wh");
@@ -37,6 +43,9 @@ window.renderMonstockTableHtml = function () {
     let selectedWh = $("#filter-monstock-wh").val();
 
     if (!selectedWh || selectedWh === "") {
+        // 🚀 Sembunyikan info tanggal kalau gudang belum dipilih
+        $("#last-upload-container").addClass("d-none");
+
         tbody.html(`
             <tr>
                 <td colspan="8" class="text-center py-5 text-muted">
@@ -47,6 +56,20 @@ window.renderMonstockTableHtml = function () {
             </tr>
         `);
         return;
+    }
+
+    // ⚡ LOGIKA FORMATTING TANGGAL TERAKHIR UPLOAD ⚡
+    let lastUploadTime = window.cachedLastUpload[selectedWh.toUpperCase()];
+    if (lastUploadTime) {
+        // Pisahkan string "YYYY-MM-DD HH:MM:SS" biar rapi dibaca user Indonesia
+        let t = lastUploadTime.split(/[- :]/);
+        let formattedDate = `${t[2]}/${t[1]}/${t[0]} - Jam ${t[3]}:${t[4]}`;
+
+        $("#last-upload-text").text(formattedDate);
+        $("#last-upload-container").removeClass("d-none");
+    } else {
+        $("#last-upload-text").text("Belum pernah diupload");
+        $("#last-upload-container").removeClass("d-none");
     }
 
     let html = "";
@@ -79,6 +102,8 @@ window.renderMonstockTableHtml = function () {
     tbody.html(html);
     if (window.lucide) window.lucide.createIcons();
 };
+
+// ... Sisa fungsi filterMonstockTableLogic, reset, dan binding di bawahnya tetap biarkan utuh seperti semula ...
 
 /**
  * ⚡ PROSES FILTER PENCARIAN MANUAL (STERIL & RINGAN 100%) ⚡

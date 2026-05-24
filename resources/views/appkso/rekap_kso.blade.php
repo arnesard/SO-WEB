@@ -97,6 +97,76 @@
 <body>
     <div class="container position-relative" id="main-content" style="top: -13px;">
 
+<<<<<<< HEAD
+=======
+        {{-- FILTER & ACTION --}}
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap no-print">
+            <div class="w-75" style="height: 38px;">
+                <form action="" method="GET" class="d-flex gap-2 align-items-center" id="picForm">
+                    <select name="pic_name" id="picName" class="form-select w-25" required>
+                        <option value="">Pilih PIC</option>
+                        @foreach ($pics as $pic)
+                            @php
+                                $val = is_object($pic)
+                                    ? $pic->value ?? ($pic->opr ?? '')
+                                    : (is_array($pic)
+                                        ? $pic['value'] ?? ($pic['opr'] ?? '')
+                                        : $pic);
+                            @endphp
+
+                            <option value="{{ $val }}" {{ $selectedPIC == $val ? 'selected' : '' }}>
+                                {{ $val }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <select name="auditor" class="form-select w-25" id="auditorSelect" required>
+                        <option value="">Pilih Auditor</option>
+                        @foreach ($auditor as $ad)
+                            <option value="{{ $ad }}"
+                                {{ isset($selectedAuditor) && $selectedAuditor == $ad ? 'selected' : '' }}>
+                                {{ $ad }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <!-- Tombol Print Rekap di sebelah kanan dropdown -->
+                    @if ($rows && $rows->count() > 0)
+                        <button type="button" class="btn btn-warning no-print" id="btn-print-now">
+                            PRINT REKAP
+                        </button>
+                    @endif
+
+                </form>
+            </div>
+
+
+            <div class="d-flex gap-2">
+
+
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        Menu
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock') }}">Monitoring Stock</a></li>
+                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock/data-compare') }}">Dashboard Stock
+                                Opname</a></li>
+                        <li><a class="dropdown-item" href="{{ url('/monitoring-stock/tag-kso') }}">Kartu Stock
+                                Opname</a></li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url('/monitoring-stock/rekap-kso') }}">
+                                Rekap Stock Opname
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="no-print my-2 border-bottom border-2"></div>
+
+
+>>>>>>> bad3c010e0c3457493b1e20570ac2c6e2f61d196
         {{-- TABLE --}}
         @if (!empty($rows) && $rows->count() > 0)
             <div class="mt-3 tag-info">

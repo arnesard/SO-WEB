@@ -46,10 +46,19 @@ class OracleVsFisikBarcodeMonstockController extends Controller
             ->orderBy('rackcode', 'asc')
             ->pluck('rackcode');
 
+        // 🔥 AMBIL TANGGAL TERAKHIR UPLOAD PER WAREHOUSE (BIAR KAGAK BERAT)
+        $lastUploadTimestamps = DB::table('so_all_wh_barcode_monstock_db')
+            ->select('warehouse', DB::raw('MAX(updated_at) as last_upload'))
+            ->whereNotNull('warehouse')
+            ->groupBy('warehouse')
+            ->get()
+            ->pluck('last_upload', 'warehouse'); // Hasilnya: ["APW" => "2026-05-24 09:30:00", ...]
+
         return response()->json([
-            'master_data' => $mainData,
-            'filter_wh'   => $uniqueWh,
-            'filter_rack' => $uniqueRack
+            'master_data'  => $mainData,
+            'filter_wh'    => $uniqueWh,
+            'filter_rack'  => $uniqueRack,
+            'last_upload'  => $lastUploadTimestamps // 🚀 Titip di sini bro!
         ]);
     }
 

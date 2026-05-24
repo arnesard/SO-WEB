@@ -79,20 +79,29 @@
         </div>
     </nav>
 
-    <!-- CONTENT WRAPPER - INI YANG BIKIN LEBAR FULL -->
-    <div class="container-fluid mt-2 px-4">
-        @yield('content')
-    </div>
+    <script src="{{ asset('js/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('js/excel.min.js') }}"></script>
+    <script src="{{ asset('js/FileSaver.js') }}"></script>
+    <script src="{{ asset('js/lucide.min.js') }}"></script>
+    <script src="{{ asset('js/sweetalert2.all.min.js') }}"></script>
+    <script src="{{ asset('js/echarts.min.js') }}"></script>
+    {{-- <script src="{{ asset('js/excel.min.js') }}"></script>
     <script src="{{ asset('js/FileSaver.js') }}"></script>
     <script src="{{ asset('js/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('js/lucide.min.js') }}"></script>
     <script src="{{ asset('js/sweetalert2.all.min.js') }}"></script>
-    <script src="{{ asset('js/echarts.min.js') }}"></script>
-    <script>
+    <script src="{{ asset('js/echarts.min.js') }}"></script> --}}
+    {{-- <script>
         lucide.createIcons();
-    </script>
+    </script> --}}
+
+    <!-- CONTENT WRAPPER - INI YANG BIKIN LEBAR FULL -->
+    <div class="container-fluid mt-2 px-4">
+        @yield('content')
+    </div>
+
 </body>
 
 </html>
