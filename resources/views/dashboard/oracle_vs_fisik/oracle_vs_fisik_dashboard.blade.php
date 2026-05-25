@@ -156,8 +156,9 @@
 
             <!-- CARD 1: Variance Grade OE -->
             <div class="col-6 col-md-2">
-                <div
-                    class="card glass-card glass-card-hover hover-orange border-start border-4 rounded-4 py-2 px-3 h-100">
+                <div onclick="window.openModalGrade('OE')"
+                    class="card glass-card glass-card-hover hover-orange border-start border-4 rounded-4 py-2 px-3 h-100"
+                    style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex flex-column justify-content-center w-100">
                             <div class="mb-1">
@@ -200,8 +201,9 @@
 
             <!-- CARD 2: Variance Grade OK -->
             <div class="col-6 col-md-2">
-                <div
-                    class="card glass-card glass-card-hover hover-cyan border-start border-4 rounded-4 py-2 px-3 h-100">
+                <div onclick="window.openModalGrade('OK')"
+                    class="card glass-card glass-card-hover hover-cyan border-start border-4 rounded-4 py-2 px-3 h-100"
+                    style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex flex-column justify-content-center w-100">
                             <div class="mb-1">
@@ -227,7 +229,8 @@
                                 </div>
                                 <div class="text-muted" style="font-size: 10px;">|</div>
                                 <div class="d-flex align-items-center text-success" style="font-size: 11px;">
-                                    <i data-lucide="trending-up" class="me-0.5" style="width: 12px; height: 12px;"></i>
+                                    <i data-lucide="trending-up" class="me-0.5"
+                                        style="width: 12px; height: 12px;"></i>
                                     <span id="ok-sku-plus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
@@ -244,8 +247,9 @@
 
             <!-- CARD 3: Variance Gabungan (Grade OE + Grade OK) -->
             <div class="col-6 col-md-2">
-                <div
-                    class="card glass-card glass-card-hover hover-purple border-start border-4 rounded-4 py-2 px-3 h-100">
+                <div onclick="window.openModalGrade('MIX')"
+                    class="card glass-card glass-card-hover hover-purple border-start border-4 rounded-4 py-2 px-3 h-100"
+                    style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex flex-column justify-content-center w-100">
                             <div class="mb-1">
@@ -289,8 +293,9 @@
 
             <!-- CARD 4: Variance Performance (PPM) -->
             <div class="col-6 col-md-2">
-                <div
-                    class="card glass-card glass-card-hover hover-emerald border-start border-4 rounded-4 py-2 px-3 h-100">
+                <div onclick="window.openModalPPM()"
+                    class="card glass-card glass-card-hover hover-emerald border-start border-4 rounded-4 py-2 px-3 h-100"
+                    style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between h-100">
                         <div class="d-flex flex-column justify-content-center">
                             <div class="mb-1">
@@ -321,8 +326,9 @@
 
             <!-- CARD 5: Price Variance -->
             <div class="col-6 col-md-2">
-                <div
-                    class="card glass-card glass-card-hover hover-rose border-start border-4 rounded-4 py-2 px-3 h-100">
+                <div onclick="window.openModalPriceVariance()"
+                    class="card glass-card glass-card-hover hover-rose border-start border-4 rounded-4 py-2 px-3 h-100"
+                    style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between h-100">
 
                         <!-- 1. Ganti w-100 jadi flex-grow-1 overflow-hidden agar gak nabrak icon -->
@@ -584,6 +590,104 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL 4: REKAP PRICE VARIANCE (Daftar Pattern) --}}
+<div class="modal fade" id="modalPriceVariance" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-rose text-white" style="background-color: #f43f5e;">
+                <h6 class="modal-title fw-bold">Rekap Price Variance (Pattern)</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 bg-light">
+                <div class="table-responsive border rounded bg-white" style="max-height: 60vh;">
+                    <table class="table table-hover table-sm align-middle mb-0">
+                        <thead class="sticky-top bg-dark text-white" style="font-size: 11px;">
+                            <tr>
+                                <th class="ps-3 py-2">Pattern (Grade)</th>
+                                <th class="text-end py-2">Counted</th>
+                                <th class="text-end py-2">On-hand</th>
+                                <th class="text-end py-2">Variance</th>
+                                <th class="text-center py-2">SKU (-)</th>
+                                <th class="text-center py-2">SKU (+)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-price-variance-rekap" style="font-size: 12px;">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL 5: DETAIL PRICE PATTERN --}}
+<div class="modal fade" id="modalDetailPricePattern" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white d-flex align-items-center">
+                <h5 class="modal-title fw-bold mb-0" id="modalTitlePriceDetail">PATTERN: </h5>
+                <div class="d-flex gap-2 ms-auto">
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3 bg-light">
+                <div id="alert-missing-price" class="alert alert-warning d-none align-items-center mb-3 shadow-sm"
+                    role="alert">
+                    <i data-lucide="alert-triangle" class="me-2 text-danger"></i>
+                    <div>
+                        <strong>Perhatian:</strong> Terdapat <span id="missing-price-count"
+                            class="fw-bold text-danger">0</span> Item pada pattern ini yang master harganya Rp 0 atau
+                        belum terdaftar. Total kalkulasi Rupiah mungkin tidak akurat.
+                    </div>
+                </div>
+
+                <div id="modalPriceDetailContent">
+                    <div class="text-center p-5">
+                        <div class="spinner-border text-danger"></div>
+                        <div class="mt-2 text-muted">Memuat detail harga...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL 6: DETAIL PER GRADE --}}
+<div class="modal fade" id="modalDetailGrade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white d-flex align-items-center">
+                <h5 class="modal-title fw-bold mb-0" id="modalTitleGrade">GRADE: </h5>
+                <div class="d-flex gap-2 align-items-center ms-auto">
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3 bg-light" id="modalGradeContent">
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL 7: DETAIL PPM MATRIX --}}
+<div class="modal fade" id="modalDetailPPM" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">Analisis Variance per Produk (PPM)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3 bg-light" id="modalPPMContent">
+                <div class="text-center p-5">
+                    <div class="spinner-border text-emerald"></div>
                 </div>
             </div>
         </div>

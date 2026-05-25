@@ -392,6 +392,14 @@
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="file" class="me-1" style="width: 12px; height: 12px;"></i> TAG STOCK
                             </button>
+                            <button id="btn-tagstock" onclick="switchFisikContent('tagstock_nonbarcode')"
+                                class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
+                                style="font-size: 9px; border-width: 1.5px;">
+
+                                <i data-lucide="file" class="me-1" style="width: 12px; height: 12px;"></i>
+
+                                TAG STOCK NON BARCODE
+                            </button>
                             <button id="btn-appkso" onclick="switchFisikContent('appkso')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">

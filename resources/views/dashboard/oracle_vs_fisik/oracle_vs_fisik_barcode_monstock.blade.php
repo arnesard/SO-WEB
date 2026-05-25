@@ -50,7 +50,7 @@
             class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3 flex-shrink-0">
             <div class="d-flex align-items-center gap-2">
                 <select id="filter-monstock-wh" class="form-select form-select-sm fw-bold border-primary"
-                    style="width: 200px;" onchange="window.filterMonstockTableLogic()">
+                    style="width: 360px;" onchange="window.filterMonstockTableLogic()">
                     <option value="" selected>⚠️ PILIH GUDANG</option>
                 </select>
                 <div id="last-upload-container" class="small d-none transition-all">

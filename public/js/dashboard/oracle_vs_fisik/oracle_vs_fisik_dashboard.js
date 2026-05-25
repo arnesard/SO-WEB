@@ -45,6 +45,7 @@ window.loadFisikDashboardData = function (warehouse) {
     // Tarik data dari Server
     $.get(`/oracle-fisik/get-comparison?warehouse=${warehouse}`)
         .done(function (res) {
+            window.globalComparisonData = res.data;
             // CEK DATA DULU: JIKA KOSONG ATAU TIDAK ADA DATA
             if (!res.data || res.data.length === 0) {
                 document
@@ -449,8 +450,7 @@ window.openModalDetail = function (pattern, grade) {
             // =========================================================================
             // BAGIAN HEADER UTAMA MODAL (HITUNG TOTAL SKU DINAMIS: MINUS + PLUS)
             // =========================================================================
-            let totalGlobalVariance =
-                Math.abs(totalMinusPcs) + Math.abs(totalPlusPcs);
+            let totalGlobalVariance = totalPlusPcs + totalMinusPcs;
             let formattedGlobalPcs =
                 totalGlobalVariance.toLocaleString("id-ID");
 
@@ -532,7 +532,7 @@ window.renderTotalQtyChart = function (totalOracle, totalAppkso) {
     };
 
     // REQ BARU: Hitung selisih/variance
-    const variance = totalOracle - totalAppkso;
+    const variance = totalAppkso - totalOracle;
     // Tentukan tanda plus/minus atau netral
     const sign = variance > 0 ? "+" : variance < 0 ? "-" : "";
     const varianceText = `${sign}${formatRibuan(variance)}`;
@@ -803,7 +803,7 @@ $(document)
         window.openModalDetail(pattern, grade);
     });
 
-// --- EVENT LISTENER BUAT KLIK BARIS ITEM DI MODAL 1 ---
+// --- EVENT LISTENER BUAT KLIK BARIS ITEM DI MODAL 1 DAN MODAL 5 ---
 $(document)
     .off("click", ".clickable-item")
     .on("click", ".clickable-item", function () {
@@ -813,10 +813,24 @@ $(document)
         document.getElementById("modalTitleScanHistory").innerHTML =
             `ITEM: <span class="text-warning">${itemCode}</span>`;
 
-        let scanModal = new bootstrap.Modal(
-            document.getElementById("modalScanHistory"),
-        );
+        // ==============================================================
+        // TAMBAHAN CHEAT Z-INDEX BIAR MODAL NUMPUK DENGAN BENAR
+        // ==============================================================
+        let modalScanEl = document.getElementById("modalScanHistory");
+        modalScanEl.style.zIndex = 1060; // Default Bootstrap cuma 1055
+
+        let scanModal = new bootstrap.Modal(modalScanEl);
         scanModal.show();
+
+        // Akali layar hitam (backdrop) biar ikut naik posisinya di atas Modal Fullscreen
+        setTimeout(() => {
+            let backdrops = document.querySelectorAll(".modal-backdrop");
+            if (backdrops.length > 1) {
+                // Backdrop yang terakhir kali muncul kita naikin posisinya
+                backdrops[backdrops.length - 1].style.zIndex = 1059;
+            }
+        }, 105);
+        // ==============================================================
 
         let tbody = document.getElementById("tbodyScanHistory");
         tbody.innerHTML =
@@ -1153,19 +1167,19 @@ window.openModalUnscanned = function () {
             <td class="text-center">${idx + 1}</td>
             <td class="fw-bold">${row.item}</td>
             <td class="text-truncate" style="max-width: 120px;">${row.description || "-"}</td>
-            <td class="text-end fw-bold text-danger">${parseInt(row.qty_sisa).toLocaleString()}</td>
+            <td class="text-end fw-bold ${row.qty_sisa > 0 ? "text-danger" : "text-dark"}">
+                ${parseInt(row.qty_sisa).toLocaleString()}
+            </td>
             <td class="text-center">
-    <!-- Tambahkan class 'position-relative' untuk membungkus teks -->
-    <div class="progress position-relative" style="height: 18px; font-size: 10px; background-color: #e9ecef;">
-        <div class="progress-bar progress-bar-striped bg-warning"
-             style="width: ${row.persen}%; height: 100%;">
-        </div>
-        <!-- Teks ditaruh di luar progress-bar agar tetap hitam dan di tengah -->
-        <span class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center fw-bold text-dark">
-            ${row.persen}%
-        </span>
-    </div>
-</td>
+                <div class="progress position-relative" style="height: 18px; font-size: 10px; background-color: #e9ecef;">
+                    <div class="progress-bar progress-bar-striped bg-warning"
+                         style="width: ${row.persen}%; height: 100%;">
+                    </div>
+                    <span class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center fw-bold text-dark">
+                        ${row.persen}%
+                    </span>
+                </div>
+            </td>
         </tr>
     `,
                     )
@@ -1210,4 +1224,195 @@ window.filterUnscannedTable = function () {
             }
         }
     });
+};
+
+// --- FUNGSI BUKA MODAL 1: REKAP PRICE VARIANCE ---
+window.openModalPriceVariance = function () {
+    let warehouse = document.getElementById("filter-dashboard-wh").value;
+    if (!warehouse) return;
+
+    // Pastikan data global sudah ada
+    if (!window.globalComparisonData) {
+        alert("Data belum siap, silakan refresh dashboard.");
+        return;
+    }
+
+    let myModal = new bootstrap.Modal(
+        document.getElementById("modalPriceVariance"),
+    );
+    myModal.show();
+
+    let tbody = document.getElementById("tbody-price-variance-rekap");
+    tbody.innerHTML = "";
+
+    // Ambil data yang punya selisih (variance tidak sama dengan 0)
+    let filteredData = window.globalComparisonData.filter(
+        (i) => parseInt(i.variance) !== 0,
+    );
+
+    if (filteredData.length === 0) {
+        tbody.innerHTML =
+            '<tr><td colspan="6" class="text-center p-4 text-muted">Tidak ada variance, data aman!</td></tr>';
+        return;
+    }
+
+    // Render baris ke tabel
+    let html = filteredData
+        .map((row) => {
+            let varClass = row.variance < 0 ? "text-danger" : "text-primary";
+            return `
+        <tr class="clickable-price-row" data-pattern="${row.pattern}" data-grade="${row.grade}" style="cursor:pointer; transition: background 0.2s;">
+            <td class="text-start fw-bold text-dark ps-3">${row.pattern} (${row.grade})</td>
+            <td class="text-end">${parseInt(row.qty_appkso).toLocaleString("id-ID")}</td>
+            <td class="text-end">${parseInt(row.qty_oracle).toLocaleString("id-ID")}</td>
+            <td class="text-end fw-bold ${varClass}">${parseInt(row.variance).toLocaleString("id-ID")}</td>
+            <td class="text-center text-danger fw-bold">${row.sku_minus}</td>
+            <td class="text-center text-primary fw-bold">${row.sku_plus}</td>
+        </tr>`;
+        })
+        .join("");
+
+    tbody.innerHTML = html;
+};
+
+// --- EVENT LISTENER KLIK BARIS DI MODAL 1 UNTUK BUKA MODAL 2 ---
+$(document)
+    .off("click", ".clickable-price-row")
+    .on("click", ".clickable-price-row", function () {
+        let pattern = $(this).data("pattern");
+        let grade = $(this).data("grade");
+        window.openModalDetailPrice(pattern, grade);
+    });
+
+// --- FUNGSI BUKA MODAL 2: DETAIL ITEM & HARGA ---
+window.openModalDetailPrice = function (pattern, grade) {
+    let warehouse = document.getElementById("filter-dashboard-wh").value;
+
+    // Set judul modal
+    let titleEl = document.getElementById("modalTitlePriceDetail");
+    titleEl.innerHTML = `PATTERN: <span class="text-warning">${grade} ${pattern}</span> (${warehouse})`;
+
+    // Tampilkan modal 2 (Otomatis numpuk di atas Modal 1)
+    let detailModal = new bootstrap.Modal(
+        document.getElementById("modalDetailPricePattern"),
+    );
+    detailModal.show();
+
+    // Sembunyikan alert saat awal loading
+    document.getElementById("alert-missing-price").classList.add("d-none");
+    document.getElementById("modalPriceDetailContent").innerHTML =
+        '<div class="text-center p-5"><div class="spinner-border text-danger"></div><div class="mt-2 text-muted">Mengambil data harga dan kalkulasi variance...</div></div>';
+
+    $.get(
+        `/oracle-fisik/get-detail-price-pattern?pattern=${encodeURIComponent(pattern)}&grade=${encodeURIComponent(grade)}&warehouse=${warehouse}`,
+    )
+        .done(function (res) {
+            // Tembak HTML dari blade partial ke dalam div
+            document.getElementById("modalPriceDetailContent").innerHTML =
+                res.html;
+
+            // Re-render icon lucide kalau ada (buat icon warning harga 0)
+            if (typeof lucide !== "undefined") lucide.createIcons();
+
+            // LOGIC MENAMPILKAN ALERT JIKA ADA HARGA YANG BOLONG
+            let alertBox = document.getElementById("alert-missing-price");
+            let countSpan = document.getElementById("missing-price-count");
+
+            if (res.summary.missing_price_count > 0) {
+                countSpan.innerText = res.summary.missing_price_count;
+                alertBox.classList.remove("d-none");
+                alertBox.classList.add("d-flex");
+            } else {
+                alertBox.classList.add("d-none");
+                alertBox.classList.remove("d-flex");
+            }
+
+            // UPDATE HEADER MODAL DENGAN SUMMARY TOTAL RUPIAH
+            let totalGlobalPcs =
+                res.summary.total_pcs_variance.toLocaleString("id-ID");
+            let totalGlobalRp =
+                res.summary.total_rp_variance.toLocaleString("id-ID");
+
+            titleEl.innerHTML = `PATTERN: <span class="text-warning">${grade} ${pattern}</span> (${warehouse}) &nbsp;|&nbsp;
+                ${totalGlobalPcs} Pcs (Rp ${totalGlobalRp}) dari ${res.summary.total_sku_dinamis} SKU &nbsp;|&nbsp;
+                <span class="text-danger">SKU Minus (-) ${res.summary.sku_minus}</span> &nbsp;&amp;&nbsp;
+                <span class="text-primary">SKU Plus (+) ${res.summary.sku_plus}</span>`;
+        })
+        .fail(function () {
+            document.getElementById("modalPriceDetailContent").innerHTML =
+                '<div class="p-4 text-danger text-center fw-bold"><i data-lucide="x-circle" class="me-2"></i>Gagal memuat detail harga.</div>';
+            if (typeof lucide !== "undefined") lucide.createIcons();
+            titleEl.innerText = `PATTERN: ${grade} ${pattern} (${warehouse}) | ERROR`;
+        });
+};
+
+// --- FUNGSI BUKA MODAL DETAIL PER GRADE (DARI CARD 1, 2, 3) ---
+window.openModalGrade = function (grade) {
+    let warehouse = document.getElementById("filter-dashboard-wh").value;
+    if (!warehouse) {
+        alert("Pilih gudang terlebih dahulu.");
+        return;
+    }
+
+    let titleEl = document.getElementById("modalTitleGrade");
+    let gradeLabel = grade === "MIX" ? "GABUNGAN (OE + OK)" : grade;
+    titleEl.innerHTML = `GRADE: <span class="text-warning">${gradeLabel}</span> (${warehouse}) | Memuat...`;
+
+    let myModal = new bootstrap.Modal(
+        document.getElementById("modalDetailGrade"),
+    );
+    myModal.show();
+
+    document.getElementById("modalGradeContent").innerHTML =
+        '<div class="text-center p-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted">Mengambil data anomali per Grade...</div></div>';
+
+    $.get(
+        `/oracle-fisik/get-detail-grade?grade=${grade}&warehouse=${warehouse}`,
+    )
+        .done(function (res) {
+            document.getElementById("modalGradeContent").innerHTML = res.html;
+
+            let totalPcs = res.summary.total_pcs.toLocaleString("id-ID");
+
+            // PERBAIKAN: Format string sesuai request (Hapus teks "dari X SKU")
+            titleEl.innerHTML = `GRADE: <span class="text-warning">${gradeLabel}</span> (${warehouse}) &nbsp;|&nbsp; ${totalPcs} Pcs &nbsp;|&nbsp; <span class="text-danger">SKU Minus (-) ${res.summary.minus_sku}</span> &nbsp;&amp;&nbsp; <span class="text-primary">SKU Plus (+) ${res.summary.plus_sku}</span>`;
+        })
+        .fail(function () {
+            document.getElementById("modalGradeContent").innerHTML =
+                '<div class="p-4 text-danger text-center fw-bold">Gagal memuat detail Grade.</div>';
+            titleEl.innerText = `GRADE: ${gradeLabel} (${warehouse}) | ERROR`;
+        });
+};
+
+// --- FUNGSI BUKA MODAL PPM (CARD 4) ---
+window.openModalPPM = function () {
+    // AMBIL GUDANG YANG AKTIF DI SELECT BOX
+    let warehouse = document.getElementById("filter-dashboard-wh").value;
+
+    if (!warehouse) {
+        alert("Pilih gudang terlebih dahulu.");
+        return;
+    }
+
+    let myModal = new bootstrap.Modal(
+        document.getElementById("modalDetailPPM"),
+    );
+    myModal.show();
+
+    document.getElementById("modalPPMContent").innerHTML =
+        '<div class="text-center p-5"><div class="spinner-border text-emerald"></div><div class="mt-2 text-muted">Memuat data matriks PPM untuk gudang ' +
+        warehouse +
+        "...</div></div>";
+
+    // TAMBAHKAN PARAMETER WAREHOUSE DI SINI
+    $.get(
+        `/oracle-fisik/get-detail-ppm?warehouse=${encodeURIComponent(warehouse)}`,
+    )
+        .done(function (res) {
+            document.getElementById("modalPPMContent").innerHTML = res;
+        })
+        .fail(function () {
+            document.getElementById("modalPPMContent").innerHTML =
+                '<div class="p-4 text-danger text-center fw-bold">Gagal memuat data PPM.</div>';
+        });
 };

@@ -15,7 +15,7 @@ use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikPicController;
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikTagStockController;
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikSnapshotController;
 use App\Http\Controllers\dashboard\ProgressController;
-
+use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikNonBarcodeTagStockController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -46,6 +46,9 @@ Route::controller(OracleVsFisikController::class)->group(function () {
     Route::get('/oracle-fisik/get-detail-pattern', 'getDetailPattern')->name('oracle_fisik.detail-pattern');
     Route::get('/oracle-fisik/get-scan-history', 'getScanHistory')->name('oracle_fisik.scan-history');
     Route::get('/oracle-fisik/get-unscanned-items', 'getUnscannedItems')->name('oracle_fisik.unscanned-items');
+    Route::get('/oracle-fisik/get-detail-price-pattern', [OracleVsFisikController::class, 'getDetailPricePattern']);
+    Route::get('/oracle-fisik/get-detail-grade', [OracleVsFisikController::class, 'getDetailGrade']);
+    Route::get('/oracle-fisik/get-detail-ppm', [OracleVsFisikController::class, 'getDetailPPM']);
 });
 
 
@@ -109,6 +112,16 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
             Route::get('/operators', 'getOperatorsByWarehouse')->name('operators');
             Route::get('/operator-details', 'getOperatorDetails')->name('operator-details');
             Route::post('/process-rows', 'processRows')->name('process-rows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        });
+
+    // 3.5.1. Modul Tag Stock NON Barcode
+    Route::controller(OracleVsFisikNonBarcodeTagStockController::class) // <-- PAKAI NAMA CLASS BARU
+        ->prefix('tagstocknonbarcode') // <-- Buat tanpa strip agar sinkron dengan file JS asli lu
+        ->group(function () {
+            Route::post('/upload', 'uploadExcel')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::get('/init-filters', 'initFilters');
+            Route::get('/operators', 'getOperatorsByWarehouse');
+            Route::post('/process-rows', 'processRows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
         });
 
     // 3.6. Modul Snapshot Oracle

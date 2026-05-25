@@ -15,24 +15,55 @@ window.initBarcodeMonstockMenu = function () {
 
 window.loadBarcodeMonstockData = function () {
     let tbody = $("#tbody-barcode-monstock");
-    if (!tbody || tbody.length === 0) return;
+    if (!tbody.length) return;
 
-    tbody.html(
-        '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div> Sinkronisasi database monstock...</td></tr>',
-    );
+    tbody.html(`
+        <tr>
+            <td colspan="8" class="text-center py-4">
+                <div class="spinner-border spinner-border-sm text-secondary"></div>
+                Sinkronisasi database monstock...
+            </td>
+        </tr>
+    `);
 
     $.get("/oracle-fisik/barcode/data", function (response) {
         window.cachedMonstockData = response.master_data || [];
-        window.cachedLastUpload = response.last_upload || {}; // 🚀 Ambil data tanggal upload dari backend
+        window.cachedLastUpload = response.last_upload || {};
         let filterWh = response.filter_wh || [];
 
         let whSelect = $("#filter-monstock-wh");
-        let currentWh = whSelect.val();
-        whSelect.html('<option value="">⚠️ PILIH GUDANG</option>');
+        let currentWh = whSelect.val() || "";
+
+        whSelect.empty();
+        whSelect.append(`<option value="">⚠️ PILIH GUDANG</option>`);
+
+        if (!Array.isArray(filterWh)) filterWh = [];
+
         filterWh.forEach((wh) => {
-            whSelect.append(`<option value="${wh}">${wh}</option>`);
+            if (!wh) return;
+
+            let whKey = String(wh).trim().toUpperCase();
+            let lastUpload = window.cachedLastUpload?.[whKey];
+
+            let label = "";
+
+            if (lastUpload) {
+                let t = lastUpload.split(/[- :]/);
+                if (t.length >= 5) {
+                    label = `${wh} — Terakhir Upload: ${t[2]}/${t[1]}/${t[0]} - Jam ${t[3]}:${t[4]}`;
+                } else {
+                    label = `${wh} — Terakhir Upload: ${lastUpload}`;
+                }
+            } else {
+                label = `${wh} — Belum pernah diupload`;
+            }
+
+            whSelect.append(new Option(label, wh));
         });
-        if (currentWh) whSelect.val(currentWh);
+
+        if (currentWh) {
+            whSelect.val(currentWh);
+        }
 
         window.renderMonstockTableHtml();
     });

@@ -27,6 +27,7 @@ class OracleVsFisikController extends Controller
             'oracle_snapshot'    => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_snapshot',
             'barcode_monitoring' => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_barcode_monstock',
             'tagstock'           => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_tagstock',
+            'tagstock_nonbarcode' => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_tagstoknonbarcode',
             'appkso'             => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_appkso',
             'pic'                => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_pic',
             'default'            => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_dashboard',
@@ -229,36 +230,211 @@ class OracleVsFisikController extends Controller
         $warehouse = $request->query('warehouse');
         if (!$warehouse) return response()->json(['success' => false]);
 
+        // 1. Buat subquery fisik yang sudah di-sum per item
+        $fisikSub = DB::table('so_all_wh_appkso_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_fisik'))
+            ->groupBy('item');
+
+        // 2. Gunakan $fisikSub tersebut di join utama
         $data = DB::table('so_all_wh_snapshot_db as s')
             ->join('so_all_wh_master_size_db as m', 's.item', '=', 'm.item')
-            ->leftJoin('so_all_wh_appkso_db as f', function ($join) use ($warehouse) {
-                $join->on('s.item', '=', 'f.item')->where('f.warehouse', $warehouse);
-            })
+            ->leftJoinSub($fisikSub, 'f', 's.item', '=', 'f.item') // JOIN DENGAN SUBQUERY
             ->where('s.warehouse', $warehouse)
             ->select(
                 's.item',
                 'm.description',
                 'm.grade',
                 DB::raw('SUM(s.qty) as qty_oracle'),
-                DB::raw('COALESCE(SUM(f.qty), 0) as qty_fisik')
+                DB::raw('COALESCE(f.total_fisik, 0) as qty_fisik') // Panggil total_fisik dari subquery
             )
-            ->groupBy('s.item', 'm.description', 'm.grade')
-            // Filter: Hanya tampilkan yang qty_fisik < qty_oracle (belum 100%)
+            ->groupBy('s.item', 'm.description', 'm.grade', 'f.total_fisik')
             ->havingRaw('qty_fisik < qty_oracle')
             ->get()
             ->map(function ($item) {
+                // Sekarang perhitungan sisa di sini pasti akurat
+                $sisa = $item->qty_oracle - $item->qty_fisik;
                 $progress = ($item->qty_oracle > 0) ? ($item->qty_fisik / $item->qty_oracle) * 100 : 0;
+
                 return [
                     'item' => $item->item,
                     'description' => $item->description,
                     'grade' => $item->grade,
-                    'qty_sisa' => $item->qty_oracle - $item->qty_fisik,
-                    'persen' => round($progress, 1)
+                    'qty_sisa' => $sisa,
+                    'persen' => ($sisa > 0)
+                        ? min(round($progress, 2), 99.99)
+                        : 100
                 ];
             })
             ->sortByDesc('persen')
             ->values();
 
         return response()->json(['success' => true, 'data' => $data]);
+    }
+
+    public function getDetailPricePattern(Request $request)
+    {
+        $pattern = $request->query('pattern');
+        $grade = $request->query('grade');
+        $warehouse = $request->query('warehouse');
+
+        $oracleSub = DB::table('so_all_wh_snapshot_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_oracle'))
+            ->groupBy('item');
+
+        $fisikSub = DB::table('so_all_wh_appkso_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_fisik'))
+            ->groupBy('item');
+
+        // Bawa join tabel harga (p)
+        $items = DB::table('so_all_wh_master_size_db as m')
+            ->leftJoinSub($oracleSub, 'o', 'm.item', '=', 'o.item')
+            ->leftJoinSub($fisikSub, 'f', 'm.item', '=', 'f.item')
+            ->leftJoin('so_all_wh_price_db as p', 'm.item', '=', 'p.item')
+            ->where('m.pattern', $pattern)
+            ->where('m.grade', $grade)
+            ->where('m.warehouse', $warehouse)
+            ->select(
+                'm.item',
+                'm.description',
+                DB::raw('COALESCE(p.price, 0) as price'),
+                DB::raw('COALESCE(o.total_oracle, 0) as oracle_qty'),
+                DB::raw('COALESCE(f.total_fisik, 0) as appkso_qty'),
+                DB::raw('COALESCE(f.total_fisik, 0) - COALESCE(o.total_oracle, 0) as variance'),
+                // Kalkulasi langsung di database biar kenceng
+                DB::raw('(COALESCE(f.total_fisik, 0) * COALESCE(p.price, 0)) as counted_rp'),
+                DB::raw('(COALESCE(o.total_oracle, 0) * COALESCE(p.price, 0)) as snapshot_rp'),
+                DB::raw('((COALESCE(f.total_fisik, 0) - COALESCE(o.total_oracle, 0)) * COALESCE(p.price, 0)) as variance_rp')
+            )
+            ->get();
+
+        // Pisah data minus dan plus
+        $minusData = $items->where('variance', '<', 0)->sortBy('variance')->values();
+        $plusData  = $items->where('variance', '>', 0)->sortByDesc('variance')->values();
+
+        // Cari item bermasalah (variance != 0) tapi harganya masih 0 atau NULL
+        $missingPriceCount = $items->where('variance', '!=', 0)->where('price', 0)->count();
+        $totalSkuDinamis = $minusData->count() + $plusData->count();
+
+        // Panggil view partial khusus harga
+        $html = view('dashboard.oracle_vs_fisik.partials.modal_detail_price', [
+            'minusData' => $minusData,
+            'plusData' => $plusData
+        ])->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'summary' => [
+                'total_sku_dinamis' => $totalSkuDinamis,
+                'missing_price_count' => $missingPriceCount,
+                'sku_minus' => $minusData->count(),
+                'sku_plus'  => $plusData->count(),
+                'total_pcs_variance' => $items->sum('variance'),
+                'total_rp_variance' => $items->sum('variance_rp'),
+            ]
+        ]);
+    }
+
+    public function getDetailGrade(Request $request)
+    {
+        $grade = $request->query('grade');
+        $warehouse = $request->query('warehouse');
+
+        $oracleSub = DB::table('so_all_wh_snapshot_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_oracle'))
+            ->groupBy('item');
+
+        $fisikSub = DB::table('so_all_wh_appkso_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_fisik'))
+            ->groupBy('item');
+
+        $query = DB::table('so_all_wh_master_size_db as m')
+            ->leftJoinSub($oracleSub, 'o', 'm.item', '=', 'o.item')
+            ->leftJoinSub($fisikSub, 'f', 'm.item', '=', 'f.item')
+            ->where('m.warehouse', $warehouse)
+            ->select(
+                'm.pattern',
+                'm.item',
+                'm.description',
+                DB::raw('COALESCE(o.total_oracle, 0) as oracle_qty'),
+                DB::raw('COALESCE(f.total_fisik, 0) as appkso_qty'),
+                DB::raw('COALESCE(f.total_fisik, 0) - COALESCE(o.total_oracle, 0) as variance')
+            );
+
+        // Kalau parameternya spesifik OE atau OK, kita filter.
+        // Kalau lu nanti mau bikin buat Card 3 (Mix), kirim aja grade='MIX'
+        if ($grade !== 'MIX') {
+            $query->where('m.grade', $grade);
+        }
+
+        $items = $query->get();
+
+        // Buang yang variance-nya 0 (yang balance gak perlu ditampilin)
+        $problematicItems = $items->filter(function ($item) {
+            return $item->variance != 0;
+        });
+
+        // Pisahkan sorting untuk setiap data
+        $minusData = $problematicItems->where('variance', '<', 0)->sortBy('variance')->values();
+        $plusData  = $problematicItems->where('variance', '>', 0)->sortByDesc('variance')->values();
+
+        $html = view('dashboard.oracle_vs_fisik.partials.modal_detail_grade', [
+            'minusData' => $minusData,
+            'plusData' => $plusData
+        ])->render();
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'summary' => [
+                'minus_sku' => $minusData->count(),
+                'plus_sku'  => $plusData->count(),
+                'total_pcs' => $problematicItems->sum('variance')
+            ]
+        ]);
+    }
+
+    public function getDetailPPM(Request $request)
+    {
+        $warehouse = $request->query('warehouse');
+
+        if (!$warehouse) {
+            return response()->json(['success' => false, 'message' => 'Warehouse tidak ditemukan']);
+        }
+
+        // Gunakan subquery yang sudah difilter WAREHOUSE sebelum di-JOIN
+        $oracleSub = DB::table('so_all_wh_snapshot_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_oracle'))
+            ->groupBy('item');
+
+        $fisikSub = DB::table('so_all_wh_appkso_db')
+            ->where('warehouse', $warehouse)
+            ->select('item', DB::raw('SUM(qty) as total_fisik'))
+            ->groupBy('item');
+
+        // Query utama: Ambil produk HANYA yang ada di master_size gudang ini
+        $data = DB::table('so_all_wh_master_size_db as m')
+            ->leftJoinSub($oracleSub, 'o', 'm.item', '=', 'o.item')
+            ->leftJoinSub($fisikSub, 'f', 'm.item', '=', 'f.item')
+            ->where('m.warehouse', $warehouse)
+            ->select(
+                'm.product',
+                'm.grade',
+                DB::raw('SUM(COALESCE(o.total_oracle, 0)) as on_hand'),
+                DB::raw('SUM(COALESCE(f.total_fisik, 0)) as counted')
+            )
+            ->groupBy('m.product', 'm.grade')
+            ->get();
+
+        return view('dashboard.oracle_vs_fisik.partials.modal_detail_ppm', [
+            'data' => $data,
+            'warehouse' => $warehouse
+        ])->render();
     }
 }
