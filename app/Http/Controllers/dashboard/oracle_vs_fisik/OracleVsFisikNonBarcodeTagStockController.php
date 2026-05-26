@@ -203,7 +203,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
             // 3. Query utama
             $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
                 ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                    $join->on('a.item', '=', 'm.item')
+                    $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
                         ->on('a.warehouse', '=', 'm.warehouse');
                 });
 
@@ -294,7 +294,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
         // Query utama
         $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
             ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                $join->on('a.item', '=', 'm.item')
+                $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
                     ->on('a.warehouse', '=', 'm.warehouse');
             })
             ->where('a.warehouse', $warehouse)
