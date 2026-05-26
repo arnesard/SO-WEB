@@ -613,6 +613,17 @@
                             function() {
                                 if (typeof window.initTagStockMenu === 'function') window.initTagStockMenu();
                             });
+                    } else if (menu === 'tagstock_nonbarcode') {
+                        let excelLibUrl = "{{ asset('js/xlsx.full.min.js') }}";
+                        let tagstockJsUrl =
+                            "{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_tagstoknonbarcode.js') }}?v=" +
+                            new Date().getTime();
+                        $.getScript(excelLibUrl).done(function() {
+                            $.getScript(tagstockJsUrl).done(function() {
+                                if (typeof window.initTagStockMenu === 'function') window
+                                    .initTagStockMenu();
+                            });
+                        });
                     } else if (menu === 'appkso') {
                         let excelLibUrl = "{{ asset('js/excel.min.js') }}";
                         let appksoJsUrl = "{{ asset('js/dashboard/oracle_vs_fisik/oracle_vs_fisik_appkso.js') }}";

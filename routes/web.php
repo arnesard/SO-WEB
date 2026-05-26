@@ -112,16 +112,23 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
             Route::get('/operators', 'getOperatorsByWarehouse')->name('operators');
             Route::get('/operator-details', 'getOperatorDetails')->name('operator-details');
             Route::post('/process-rows', 'processRows')->name('process-rows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/validasi-appkso', 'validateAppkso')->name('validasi-appkso')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/cek-doc', 'checkDoc')->name('cek-doc')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/scan-history', 'getScanHistory')->name('scan-history')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
         });
 
     // 3.5.1. Modul Tag Stock NON Barcode
     Route::controller(OracleVsFisikNonBarcodeTagStockController::class) // <-- PAKAI NAMA CLASS BARU
-        ->prefix('tagstocknonbarcode') // <-- Buat tanpa strip agar sinkron dengan file JS asli lu
+        ->prefix('tagstock-nonbarcode') // <-- Diubah menggunakan strip (-) agar sinkron dengan file JS & Blade
         ->group(function () {
             Route::post('/upload', 'uploadExcel')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
             Route::get('/init-filters', 'initFilters');
             Route::get('/operators', 'getOperatorsByWarehouse');
             Route::post('/process-rows', 'processRows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::match(['get', 'post'], '/print', 'printTagStock')->name('print');
+            Route::get('/template', function () {
+                return response()->download(public_path('template/tes_tag_stok_kosong.xlsx'));
+            })->name('tagstock-nonbarcode.template');
         });
 
     // 3.6. Modul Snapshot Oracle

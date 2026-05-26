@@ -277,4 +277,205 @@ class OracleVsFisikTagStockController extends Controller
             'lot'    => $lotDisplay,
         ]);
     }
+
+    /**
+     * 🎯 SINKRONISASI CORES: Tombol Validasi (Bandingkan QTY dengan APPKSO per Operator)
+     */
+    public function validateAppkso(Request $request)
+    {
+        $warehouse  = $request->warehouse;
+        $operatorId = $request->operator_id;
+        $docStart   = $request->doc_start;
+        $docEnd     = $request->doc_end;
+
+        if (empty($warehouse) || empty($operatorId)) {
+            return response()->json(['status' => 'error', 'message' => 'Filter belum lengkap'], 400);
+        }
+
+        try {
+            $picInfos = DB::table('so_all_wh_pic_stock_db')
+                ->where('no_penneng', $operatorId)
+                ->where('warehouse', $warehouse)
+                ->get();
+
+            if ($picInfos->isEmpty()) {
+                return response()->json(['status' => 'error', 'message' => 'PIC tidak ditemukan'], 404);
+            }
+
+            $lotFilters = [];
+            foreach ($picInfos as $pic) {
+                $gedung = strtoupper(trim($pic->gedung));
+                $lotParts = explode('-', trim($pic->lot));
+                $lotFilters[] = [
+                    'gedung' => $gedung,
+                    'awal'   => trim($lotParts[0]),
+                    'akhir'  => trim($lotParts[1] ?? $lotParts[0])
+                ];
+            }
+
+            // Subquery untuk menjumlahkan Qty APPKSO per Dokumen & Item
+            $subAppkso = DB::table('so_all_wh_appkso_db')
+                ->select('nokso', 'item', DB::raw('SUM(qty) as total_qty'))
+                ->groupBy('nokso', 'item');
+
+            $query = DB::table('so_all_wh_barcode_monstock_auto_db as a')
+                ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
+                    $join->on('a.item', '=', 'm.item')
+                        ->on('a.warehouse', '=', 'm.warehouse');
+                })
+                ->leftJoinSub($subAppkso, 'kso', function ($join) {
+                    $join->on('a.no_doc', '=', 'kso.nokso')
+                        ->on('a.item', '=', 'kso.item');
+                })
+                ->where('a.warehouse', $warehouse)
+                ->where(function ($q) use ($lotFilters) {
+                    foreach ($lotFilters as $filter) {
+                        $q->orWhere(function ($sub) use ($filter) {
+                            $sub->where('a.loccode', 'LIKE', $filter['gedung'] . '-%')
+                                ->whereBetween(DB::raw("SUBSTRING_INDEX(a.loccode, '-', -1)"), [
+                                    $filter['awal'],
+                                    $filter['akhir']
+                                ]);
+                        });
+                    }
+                });
+
+            if ($docStart && $docEnd) {
+                $query->whereBetween('a.no_doc', [$docStart, $docEnd]);
+            }
+
+            $rows = $query
+                ->select(
+                    'a.loccode as lot_display',
+                    'a.no_doc',
+                    'a.item',
+                    'm.description',
+                    'a.Rak',
+                    'a.Qty as qty_tag',
+                    DB::raw('COALESCE(kso.total_qty, 0) as qty_appkso')
+                )
+                ->orderBy('a.no_doc', 'asc')
+                ->get();
+
+            return response()->json(['status' => 'success', 'master_data' => $rows]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * 🎯 SINKRONISASI CORES: Tombol Cek Doc (Seluruh Gudang Tanpa Filter Operator + Filter Selisih 0 + PIC)
+     */
+    public function checkDoc(Request $request)
+    {
+        $warehouse = $request->warehouse;
+
+        if (empty($warehouse)) {
+            return response()->json(['status' => 'error', 'message' => 'Gudang wajib dipilih'], 400);
+        }
+
+        try {
+            // 1. Subquery APPKSO
+            $subAppkso = DB::table('so_all_wh_appkso_db')
+                ->select('nokso', 'item', DB::raw('SUM(qty) as total_qty'))
+                ->groupBy('nokso', 'item');
+
+            // 2. Ambil List PIC untuk Gudang ini
+            $pics = DB::table('so_all_wh_pic_stock_db')
+                ->where('warehouse', $warehouse)
+                ->get();
+
+            $picList = [];
+            foreach ($pics as $p) {
+                $parts = explode('-', trim($p->lot));
+                $picList[] = [
+                    'nama'   => $p->nama,
+                    'gedung' => strtoupper(trim($p->gedung)),
+                    'awal'   => trim($parts[0]),
+                    'akhir'  => trim($parts[1] ?? $parts[0])
+                ];
+            }
+
+            // 3. Query Utama Barcode vs KSO
+            $rows = DB::table('so_all_wh_barcode_monstock_auto_db as a')
+                ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
+                    $join->on('a.item', '=', 'm.item')
+                        ->on('a.warehouse', '=', 'm.warehouse');
+                })
+                ->leftJoinSub($subAppkso, 'kso', function ($join) {
+                    $join->on('a.no_doc', '=', 'kso.nokso')
+                        ->on('a.item', '=', 'kso.item');
+                })
+                ->where('a.warehouse', $warehouse)
+                ->select(
+                    'a.loccode as lot_display',
+                    'a.no_doc',
+                    'a.item',
+                    'm.description',
+                    'a.Qty as qty_tag',
+                    DB::raw('COALESCE(kso.total_qty, 0) as qty_appkso')
+                )
+                ->orderBy('a.no_doc', 'asc')
+                ->get();
+
+            // 4. Mapping Filter Selisih & Penentuan Nama PIC
+            $filteredRows = [];
+            foreach ($rows as $r) {
+                $selisih = $r->qty_tag - $r->qty_appkso;
+
+                // 1.1 Exclude jika selisih = 0
+                if ($selisih == 0) {
+                    continue;
+                }
+
+                // 1.2 Cari Nama PIC berdasarkan Loccode (Gedung & Range Lot)
+                $picName = '-';
+                if (!empty($r->lot_display) && strpos($r->lot_display, '-') !== false) {
+                    $lastDash = strrpos($r->lot_display, '-');
+                    if ($lastDash !== false) {
+                        $locGedung = strtoupper(substr($r->lot_display, 0, $lastDash));
+                        $locLot = substr($r->lot_display, $lastDash + 1);
+
+                        foreach ($picList as $pl) {
+                            if ($pl['gedung'] === $locGedung && $locLot >= $pl['awal'] && $locLot <= $pl['akhir']) {
+                                $picName = $pl['nama'];
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                $r->pic_name = $picName;
+                $r->selisih = $selisih;
+                $filteredRows[] = $r;
+            }
+
+            return response()->json(['status' => 'success', 'master_data' => array_values($filteredRows)]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * 🎯 SINKRONISASI CORES: Ambil Detail Histori APPKSO saat Baris Tabel Diklik
+     */
+    public function getScanHistory(Request $request)
+    {
+        $warehouse = $request->warehouse;
+        $doc = $request->doc;
+        $item = $request->item;
+
+        try {
+            $history = DB::table('so_all_wh_appkso_db')
+                ->where('warehouse', $warehouse)
+                ->where('nokso', $doc)
+                ->where('item', $item)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json(['status' => 'success', 'data' => $history]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 }

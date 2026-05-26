@@ -12,12 +12,24 @@
                 style="width: 250px;" disabled>
                 <option value="" selected>-- KUNCI OPERATOR --</option>
             </select>
+
             <button type="button" id="btn-print-massal-tag"
                 class="btn btn-sm btn-success fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center"
                 onclick="openTagStockPrintEngine()">
-                <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Print Rekap Tag Stock
+                <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Print Rekap
+            </button>
+
+            <button type="button" id="btn-validasi-tag"
+                class="btn btn-sm btn-warning fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark">
+                <i data-lucide="check-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi
+            </button>
+
+            <button type="button" id="btn-cek-doc"
+                class="btn btn-sm btn-info fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark ms-1">
+                <i data-lucide="file-search" class="me-1" style="width: 14px; height: 14px;"></i> Cek Doc
             </button>
         </div>
+
         <div class="d-flex justify-content-end align-items-center gap-1 d-none" id="doc-filter-container">
             <select id="tag-filter-doc-start" class="form-select form-select-sm fw-bold border-info"
                 style="width: 180px;">
@@ -30,20 +42,17 @@
 
             <form id="form-tagstock" method="POST" action="/oracle-fisik/tagstock/print" target="_blank">
                 @csrf
-
                 <input type="hidden" name="warehouse" id="f-wh">
                 <input type="hidden" name="operator_id" id="f-op">
                 <input type="hidden" name="doc_start" id="f-doc-start">
                 <input type="hidden" name="doc_end" id="f-doc-end">
 
                 <div class="d-flex gap-1">
-                    <!-- Tombol Tag Stock -->
                     <button type="button" id="btn-tag-stock"
                         class="btn btn-sm btn-primary fw-bold text-uppercase px-3 shadow-sm d-flex align-items-center">
                         <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> TAG STOCK
                     </button>
 
-                    <!-- Tombol Reset -->
                     <button type="button" id="btn-reset-filter"
                         class="btn btn-sm btn-danger fw-bold text-uppercase px-3 shadow-sm d-flex align-items-center"
                         onclick="resetFilters()">
@@ -51,7 +60,6 @@
                     </button>
                 </div>
             </form>
-
         </div>
     </div>
 
@@ -80,7 +88,7 @@
             <table class="table table-sm table-hover align-middle mb-0" id="table-view-tagstock-list"
                 style="width: 100%; border-collapse: collapse;">
 
-                <thead class="table-light text-uppercase fw-bold position-sticky top-0"
+                <thead id="thead-tagstock" class="table-light text-uppercase fw-bold position-sticky top-0"
                     style="z-index: 5; background-color: #f8f9fa; box-shadow: inset 0 -1px 0 #dee2e6;">
                     <tr>
                         <th width="5%" class="text-center bg-light border-dark py-2">No.</th>
@@ -120,4 +128,38 @@
             </table>
         </div>
     </div>
+
+    {{-- MODAL RIWAYAT SCAN OPERATOR --}}
+    <div class="modal fade" id="modalScanHistory" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h6 class="modal-title fw-bold" id="modalTitleScanHistory">RIWAYAT SCAN OPERATOR</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive" style="max-height: 60vh;">
+                        <table class="table table-hover table-bordered table-sm mb-0 align-middle text-nowrap"
+                            style="font-size: 12px;">
+                            <thead class="bg-light sticky-top text-dark">
+                                <tr>
+                                    <th class="text-center" style="width: 5%;">NO</th>
+                                    <th>OPR ID</th>
+                                    <th>NAMA OPR</th>
+                                    <th>NO KSO</th>
+                                    <th>ITEM CODE</th>
+                                    <th>DESKRIPSI</th>
+                                    <th class="text-end text-primary" style="width: 10%;">QTY SCAN</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyScanHistory">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>

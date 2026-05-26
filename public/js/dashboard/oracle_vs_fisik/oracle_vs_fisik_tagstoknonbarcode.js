@@ -76,10 +76,8 @@ $(document)
 
         if (opId) {
             $("#doc-filter-container").removeClass("d-none");
-            // Sekarang loadDocFilter mengembalikan objek AJAX/Promise, jadi .then() tidak akan crash
-            loadDocFilter().then(() => {
-                loadTagStockData();
-            });
+            loadTagStockData();
+            loadDocFilter();
         } else {
             $("#doc-filter-container").addClass("d-none");
         }
