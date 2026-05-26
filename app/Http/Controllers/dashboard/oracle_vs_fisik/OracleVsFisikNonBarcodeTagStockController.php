@@ -44,54 +44,78 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
 
             $item    = strtoupper(trim($row[1] ?? ''));
             $loccode = strtoupper(trim($row[13] ?? ''));
+            $qty     = (int)($row[4] ?? 0);
+            $oem     = (int)($row[10] ?? 0);
+            $rackcode = $row[0] ?? null;
 
-            // Generate no_doc per baris berdasarkan loccode
-            if (empty($loccode) || $loccode === '-' || $loccode === '~') {
-                $noDoc = $loccode ?: '-';
+            // B. LOGIKA BYPASS GRADE OEM DAN SPLIT ITEM (-0 / -1)
+            $isForcedOem = (substr($item, 0, 2) === 'TH' || substr($item, -2) === 'SP');
+
+            $rawSplitRecords = [];
+            if ($isForcedOem) {
+                $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $qty, 'oem' => $qty];
             } else {
-                $historyKey = $loccode . '@' . $item;
-
-                if (isset($historicalDocMap[$historyKey])) {
-                    // Pakai no_doc lama supaya konsisten
-                    $noDoc = $historicalDocMap[$historyKey];
+                if ($oem == $qty) {
+                    $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $oem, 'oem' => $oem];
+                } elseif ($oem == 0) {
+                    $rawSplitRecords[] = ['item' => $item . '-1', 'qty' => $qty, 'oem' => 0];
                 } else {
-                    // Generate baru: G + char ke-5 dari loccode + suffix setelah char ke-6 + 2-digit sequence
-                    $prefixDoc   = 'G';
-                    $char5       = (strlen($loccode) >= 5) ? substr($loccode, 4, 1) : '0';
-                    $suffixLoc   = (strlen($loccode) >= 7) ? substr($loccode, 6) : 'UNKNOWN';
-                    $prefixNoDoc = $prefixDoc . $char5 . $suffixLoc;
-
-                    if (!isset($maxSequencePerPrefix[$prefixNoDoc])) {
-                        $maxSequencePerPrefix[$prefixNoDoc] = 0;
-
-                        foreach ($historicalDocMap as $oldDoc) {
-                            if (strpos($oldDoc, $prefixNoDoc) === 0) {
-                                $seqNumber = intval(substr($oldDoc, -2));
-                                if ($seqNumber > $maxSequencePerPrefix[$prefixNoDoc]) {
-                                    $maxSequencePerPrefix[$prefixNoDoc] = $seqNumber;
-                                }
-                            }
-                        }
-                    }
-
-                    $maxSequencePerPrefix[$prefixNoDoc]++;
-                    $noDoc = $prefixNoDoc . str_pad($maxSequencePerPrefix[$prefixNoDoc], 2, '0', STR_PAD_LEFT);
-
-                    $historicalDocMap[$historyKey] = $noDoc;
+                    $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $oem, 'oem' => $oem];
+                    $rawSplitRecords[] = ['item' => $item . '-1', 'qty' => ($qty - $oem), 'oem' => 0];
                 }
             }
 
-            $insertData[] = [
-                'warehouse'    => $warehouse,
-                'rackcode'     => $row[0] ?? null,
-                'item'         => $item,
-                'qty'          => (int)($row[4] ?? 0),
-                'oem'          => (int)($row[10] ?? 0),
-                'loccode'      => $loccode,
-                'upload_batch' => $noDoc,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ];
+            foreach ($rawSplitRecords as $split) {
+                $splitItem = $split['item'];
+
+                // Generate no_doc per baris berdasarkan loccode & splitItem
+                if (empty($loccode) || $loccode === '-' || $loccode === '~') {
+                    $noDoc = $loccode ?: '-';
+                } else {
+                    $historyKey = $loccode . '@' . $splitItem;
+
+                    if (isset($historicalDocMap[$historyKey])) {
+                        // Pakai no_doc lama supaya konsisten
+                        $noDoc = $historicalDocMap[$historyKey];
+                    } else {
+                        // Generate baru: G + char ke-5 dari loccode + suffix setelah char ke-6 + 2-digit sequence
+                        $prefixDoc   = 'G';
+                        $char5       = (strlen($loccode) >= 5) ? substr($loccode, 4, 1) : '0';
+                        $suffixLoc   = (strlen($loccode) >= 7) ? substr($loccode, 6) : 'UNKNOWN';
+                        $prefixNoDoc = $prefixDoc . $char5 . $suffixLoc;
+
+                        if (!isset($maxSequencePerPrefix[$prefixNoDoc])) {
+                            $maxSequencePerPrefix[$prefixNoDoc] = 0;
+
+                            foreach ($historicalDocMap as $oldDoc) {
+                                if (strpos($oldDoc, $prefixNoDoc) === 0) {
+                                    $seqNumber = intval(substr($oldDoc, -2));
+                                    if ($seqNumber > $maxSequencePerPrefix[$prefixNoDoc]) {
+                                        $maxSequencePerPrefix[$prefixNoDoc] = $seqNumber;
+                                    }
+                                }
+                            }
+                        }
+
+                        $maxSequencePerPrefix[$prefixNoDoc]++;
+                        $noDoc = $prefixNoDoc . str_pad($maxSequencePerPrefix[$prefixNoDoc], 2, '0', STR_PAD_LEFT);
+
+                        $historicalDocMap[$historyKey] = $noDoc;
+                    }
+                }
+
+                $insertData[] = [
+                    'warehouse'    => $warehouse,
+                    'rackcode'     => $rackcode,
+                    'item'         => $splitItem,
+                    'qty'          => $split['qty'],
+                    'oem'          => $split['oem'],
+                    'loccode'      => $loccode,
+                    'upload_batch' => $noDoc,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ];
+            }
         }
 
         if (empty($insertData)) {
@@ -203,7 +227,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
             // 3. Query utama
             $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
                 ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                    $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
+                    $join->on('a.item', '=', 'm.item')
                         ->on('a.warehouse', '=', 'm.warehouse');
                 });
 
@@ -294,7 +318,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
         // Query utama
         $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
             ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
+                $join->on('a.item', '=', 'm.item')
                     ->on('a.warehouse', '=', 'm.warehouse');
             })
             ->where('a.warehouse', $warehouse)
