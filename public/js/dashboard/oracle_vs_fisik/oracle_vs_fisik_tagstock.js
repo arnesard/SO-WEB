@@ -71,8 +71,11 @@ function loadTagStockInitialFilters() {
 
         whSelect.html('<option value="">⚠️ PILIH GUDANG</option>');
 
-        res.warehouses.forEach((wh) => {
-            whSelect.append(`<option value="${wh}">${wh}</option>`);
+        // Panggil properti .warehouse dan .last_upload sesuai json dari controller
+        res.warehouses.forEach((data) => {
+            whSelect.append(
+                `<option value="${data.warehouse}">${data.warehouse} - Terakhir Upload : ${data.last_upload}</option>`,
+            );
         });
     });
 }
@@ -85,6 +88,7 @@ function loadTagStockInitialFilters() {
 $(document)
     .off("change", "#tag-filter-wh")
     .on("change", "#tag-filter-wh", function () {
+        isValidasiMode = false;
         let wh = $(this).val();
         let opSelect = $("#tag-filter-operator");
 
@@ -349,9 +353,11 @@ function loadTagStockData() {
 
 /**
  * ==========================================
- * AKSI KLIK TOMBOL: VALIDASI
+ * AKSI KLIK TOMBOL: VALIDASI (TOGGLE)
  * ==========================================
  */
+let isValidasiMode = false; // ← FLAG TOGGLE
+
 $(document).on("click", "#btn-validasi-tag", function () {
     let wh = $("#tag-filter-wh").val();
     let opId = $("#tag-filter-operator").val();
@@ -360,26 +366,48 @@ $(document).on("click", "#btn-validasi-tag", function () {
 
     if (!wh || !opId) return;
 
+    // ─── TOGGLE OFF → balik ke mode normal ───
+    if (isValidasiMode) {
+        isValidasiMode = false;
+
+        // Reset tampilan tombol
+        $("#btn-validasi-tag")
+            .removeClass("btn-success")
+            .addClass("btn-warning")
+            .html('<i data-lucide="check-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi');
+
+        if (typeof lucide !== "undefined") lucide.createIcons();
+
+        renderNormalHeader();
+        loadTagStockData(); // balik load data biasa
+        return;
+    }
+
+    // ─── TOGGLE ON → tampilkan validasi ───
+    isValidasiMode = true;
+
+    // Ubah tampilan tombol jadi aktif (hijau)
+    $("#btn-validasi-tag")
+        .removeClass("btn-warning")
+        .addClass("btn-success")
+        .html('<i data-lucide="x-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi');
+
+    if (typeof lucide !== "undefined") lucide.createIcons();
+
     $("#tbody-tagstock-rows").html(`
         <tr><td colspan="9" class="text-center">Memvalidasi data ke APPKSO...</td></tr>
     `);
 
-    renderValidasiHeader(); // 9 kolom
+    renderValidasiHeader();
 
     $.post(
         "/oracle-fisik/tagstock/validasi-appkso",
-        {
-            warehouse: wh,
-            operator_id: opId,
-            doc_start: docStart,
-            doc_end: docEnd,
-        },
+        { warehouse: wh, operator_id: opId, doc_start: docStart, doc_end: docEnd },
         function (res) {
             if (!res || res.status !== "success") return;
 
             let html = "";
-            let totalRak = 0,
-                totalQty = 0;
+            let totalRak = 0, totalQty = 0;
 
             res.master_data.forEach((row, i) => {
                 let rak = parseInt(row.Rak || 0);
@@ -389,12 +417,9 @@ $(document).on("click", "#btn-validasi-tag", function () {
                 totalRak += rak;
                 totalQty += qtyTag;
 
-                let statusBadge = "";
-                if (qtyTag === qtyKso) {
-                    statusBadge = `<span class="badge bg-success w-100 py-1" style="font-size: 11px;">Sesuai</span>`;
-                } else {
-                    statusBadge = `<span class="badge bg-danger w-100 py-1" style="font-size: 11px;">Tidak Sesuai</span>`;
-                }
+                let statusBadge = qtyTag === qtyKso
+                    ? `<span class="badge bg-success w-100 py-1" style="font-size: 11px;">Sesuai</span>`
+                    : `<span class="badge bg-danger w-100 py-1" style="font-size: 11px;">Tidak Sesuai</span>`;
 
                 html += `
                     <tr style="cursor: pointer;" onclick="openScanHistory('${row.no_doc}', '${row.item}')">
@@ -416,7 +441,6 @@ $(document).on("click", "#btn-validasi-tag", function () {
 
             $("#tbody-tagstock-rows").html(html);
 
-            // Format Footer Dinamis Mode Validasi (Keterangan transparan putih)
             $("#tfoot-tagstock-summary").removeClass("d-none").html(`
                 <tr>
                     <td colspan="5" class="text-end py-2 text-dark bg-light border-dark">TOTAL RINGKASAN PENUGASAN :</td>
@@ -428,7 +452,7 @@ $(document).on("click", "#btn-validasi-tag", function () {
             `);
 
             if (typeof lucide !== "undefined") lucide.createIcons();
-        },
+        }
     );
 });
 
@@ -663,6 +687,11 @@ $(document)
  * ==========================================
  */
 window.resetFilters = function () {
+    isValidasiMode = false; // ← TAMBAH INI
+    $("#btn-validasi-tag")
+        .removeClass("btn-success")
+        .addClass("btn-warning")
+        .html('<i data-lucide="check-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi');
     $("#tag-filter-wh").val("").trigger("change");
     $("#tag-filter-doc-start").html('<option value="">-- DOC AWAL --</option>');
     $("#tag-filter-doc-end").html('<option value="">-- DOC AKHIR --</option>');
@@ -688,3 +717,18 @@ window.resetFilters = function () {
         lucide.createIcons();
     }
 };
+
+$(document).ready(function () {
+    // Delegasi ke body dengan tambahan trigger hover
+    $("body").tooltip({
+        selector: '[data-bs-toggle="tooltip"]',
+        trigger: "hover", // <-- Kunci utamanya: cuma bereaksi sama hover kursor, abaikan fokus/klik
+    });
+
+    // Jaga-jaga: Sembunyikan tooltip secara paksa kalau tombolnya diklik
+    $(document).on("click", '[data-bs-toggle="tooltip"]', function () {
+        $(this).tooltip("hide");
+    });
+});
+
+

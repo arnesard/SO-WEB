@@ -38,9 +38,12 @@ $(document)
             '<option value="">-- DOC AKHIR --</option>',
         );
         $("#tbody-tagstock-rows").html(
-            '<tr><td colspan="8" class="text-center">Pilih operator...</td></tr>',
+            '<tr><td colspan="9" class="text-center">Pilih operator...</td></tr>',
         );
         $("#tfoot-tagstock-summary").addClass("d-none");
+
+        // Sembunyikan kolom status saat ganti warehouse
+        $("#th-status").addClass("d-none");
 
         if (!wh) return;
 
@@ -73,13 +76,15 @@ $(document)
     .off("change", "#tag-filter-operator")
     .on("change", "#tag-filter-operator", function () {
         let opId = $(this).val();
-
         if (opId) {
             $("#doc-filter-container").removeClass("d-none");
+            $("#btn-validasi-tag").removeClass("d-none");
+
             loadTagStockData();
             loadDocFilter();
         } else {
             $("#doc-filter-container").addClass("d-none");
+            $("#btn-validasi-tag").addClass("d-none");
         }
     });
 
@@ -140,8 +145,11 @@ function loadTagStockData() {
 
     if (!wh || !opId) return;
 
+    // Sembunyikan kolom status setiap kali data di-reload
+    $("#th-status").addClass("d-none");
+
     $("#tbody-tagstock-rows").html(
-        '<tr><td colspan="8" class="text-center">Loading...</td></tr>',
+        '<tr><td colspan="9" class="text-center">Loading...</td></tr>',
     );
 
     $.post(
@@ -160,9 +168,11 @@ function loadTagStockData() {
             let totalQty = 0;
 
             res.master_data.forEach((row, i) => {
-                let rak = parseInt(row.Rak || 0);
-                let qty = parseInt(row.Qty || 0);
+                let rak = Number(row.Rak);
+                if (isNaN(rak)) rak = 0;
 
+                let qty = Number(row.Qty);
+                if (isNaN(qty)) qty = 0;
                 totalRak += rak;
                 totalQty += qty;
 
@@ -175,14 +185,21 @@ function loadTagStockData() {
                     <td>${row.description || "-"}</td>
                     <td class="text-center">${rak}</td>
                     <td class="text-end">${qty.toLocaleString("id-ID")}</td>
-                    <td></td>
+                    <td class="text-end actual-qty-cell" data-actual="${row.actual_qty ?? ''}">
+                        ${row.actual_qty === null || row.actual_qty === undefined ? "" : Number(row.actual_qty).toLocaleString("id-ID")}
+                    </td>
+
+                    {{-- Kolom status: hidden by default, muncul setelah tombol VALIDASI diklik --}}
+                    <td class="text-center status-col d-none">
+                        <span class="badge bg-secondary">BELUM</span>
+                    </td>
                 </tr>
-            `;
+                `;
             });
 
             if (!html) {
                 $("#tbody-tagstock-rows").html(
-                    '<tr><td colspan="8" class="text-center">Tidak ada data</td></tr>',
+                    '<tr><td colspan="9" class="text-center">Tidak ada data</td></tr>',
                 );
                 return;
             }
@@ -205,9 +222,12 @@ function generateTagStockPrint() {
     if (!opSelected.val()) return alert("Pilih operator dulu sebelum print");
 
     const cloned = table.cloneNode(true);
+
+    // 🔥 Hapus semua elemen d-none (kolom status dll) sebelum print
+    cloned.querySelectorAll('.d-none').forEach(el => el.remove());
+
     const oldTfoot = cloned.querySelector("tfoot");
     if (oldTfoot) oldTfoot.remove();
-
     cloned.querySelectorAll("tr").forEach((tr) => {
         const txt = tr.innerText.toLowerCase();
         if (txt.includes("ringkasan") || txt.includes("penugasan")) tr.remove();
@@ -319,8 +339,10 @@ window.resetFilters = function () {
     $("#tag-filter-doc-start").html('<option value="">-- DOC AWAL --</option>');
     $("#tag-filter-doc-end").html('<option value="">-- DOC AKHIR --</option>');
     $("#doc-filter-container").addClass("d-none");
+    $("#btn-validasi-tag").addClass("d-none");
+    $("#th-status").addClass("d-none");
     $("#tbody-tagstock-rows").html(
-        '<tr><td colspan="8" class="text-center text-muted py-5 border-0">Filter sudah di-reset.</td></tr>',
+        '<tr><td colspan="9" class="text-center text-muted py-5 border-0">Filter sudah di-reset.</td></tr>',
     );
     $("#tfoot-tagstock-summary").addClass("d-none");
     $("#btn-print-massal-tag").addClass("d-none");
@@ -328,7 +350,7 @@ window.resetFilters = function () {
 };
 
 /**
- * EVENT UPLOAD EXCEL (SUDAH DI-OFF AGAR TIDAK DOUBLE BINDING DAN DI-LOG UNTUK TRACING)
+ * EVENT UPLOAD EXCEL
  */
 $(document)
     .off("click", "#btn-upload-nonbarcode")
@@ -417,4 +439,88 @@ $(document)
         };
 
         reader.readAsArrayBuffer(file);
+    });
+
+$(document)
+    .off("change", ".actual-qty-input")
+    .on("change", ".actual-qty-input", function () {
+
+        let id = $(this).data("id");
+        let actualQty = $(this).val();
+
+        $.post(
+            "/oracle-fisik/tagstock-nonbarcode/update-actual",
+            {
+                id: id,
+                actual_qty: actualQty
+            },
+            function (res) {
+
+                if (res.status !== "success") {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Gagal",
+                        text: res.message
+                    });
+
+                    return;
+                }
+
+                loadTagStockData();
+            }
+        );
+    });
+
+/**
+ * TOMBOL VALIDASI
+ * - Munculkan header kolom status
+ * - Loop tiap baris, bandingkan qty vs actual_qty
+ * - Update badge: BELUM / SESUAI / TIDAK SESUAI
+ */
+// SESUDAH
+$(document)
+    .off("click", "#btn-validasi-tag")
+    .on("click", "#btn-validasi-tag", function () {
+
+        // Cek apakah kolom status sedang visible atau hidden
+        let isVisible = !$("#th-status").hasClass("d-none");
+
+        if (isVisible) {
+            // Kalau lagi muncul → hide semua
+            $("#th-status").addClass("d-none");
+            $("#tbody-tagstock-rows tr").each(function () {
+                $(this).find(".status-col").addClass("d-none");
+            });
+            return;
+        }
+
+        // Kalau lagi hidden → munculkan + isi badge
+        $("#th-status").removeClass("d-none");
+
+        $("#tbody-tagstock-rows tr").each(function () {
+            let row = $(this);
+
+            let qty = Number(
+                row.find("td:eq(6)")
+                    .text()
+                    .replace(/\./g, "")
+                    .replace(/,/g, "")
+            );
+
+            let actualQtyRaw = row.find("td:eq(7)").data("actual");
+            let actualQty = actualQtyRaw === "" || actualQtyRaw === null || actualQtyRaw === undefined
+                ? null
+                : Number(actualQtyRaw);
+
+            let statusCell = row.find(".status-col");
+            statusCell.removeClass("d-none");
+
+            if (actualQty === null) {
+                statusCell.html(`<span class="badge bg-secondary">BELUM</span>`);
+            } else if (Number(qty) === Number(actualQty)) {
+                statusCell.html(`<span class="badge bg-success">SESUAI</span>`);
+            } else {
+                statusCell.html(`<span class="badge bg-danger">TIDAK SESUAI</span>`);
+            }
+        });
     });

@@ -79,6 +79,34 @@ return [
             'engine' => null,
         ],
 
+        'fginvc' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_HOST_SECOND', '127.0.0.1'),
+            'port'      => env('DB_PORT_SECOND', '6447'),
+            'database'  => 'fginvc',
+            'username'  => env('DB_USERNAME_SECOND', 'root'),
+            'password'  => env('DB_PASSWORD_SECOND', ''),
+            'charset'   => 'latin1',
+            'collation' => 'latin1_swedish_ci',
+            'prefix'    => '',
+            'strict'    => false,
+            'engine'    => null,
+        ],
+
+        'bcmcfgv1' => [
+            'driver'    => 'mysql',
+            'host'      => env('DB_HOST_BCMCFGV1', '127.0.0.1'),
+            'port'      => env('DB_PORT_BCMCFGV1', '6447'),
+            'database'  => 'bcmcfgv1',
+            'username'  => env('DB_USERNAME_BCMCFGV1', 'root'),
+            'password'  => env('DB_PASSWORD_BCMCFGV1', ''),
+            'charset'   => 'latin1',
+            'collation' => 'latin1_swedish_ci',
+            'prefix'    => '',
+            'strict'    => false,
+            'engine'    => null,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

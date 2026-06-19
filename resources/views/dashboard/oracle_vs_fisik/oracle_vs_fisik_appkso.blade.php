@@ -133,6 +133,12 @@
                                 style="font-size: 10px; height: 26px; display: flex; align-items: center; gap: 4px;">
                                 <i data-lucide="printer" style="width: 12px; height: 12px;"></i> Print KSO
                             </button>
+                            <button type="button" id="btn-export-excel-appkso"
+                                class="btn btn-xs btn-warning fw-bold text-uppercase no-print"
+                                style="font-size: 10px; height: 26px; display: flex; align-items: center; gap: 4px; color: #000 !important;">
+                                <i data-lucide="file-spreadsheet" style="width: 12px; height: 12px;"></i> Export Excel
+                            </button>
+
                         </div>
                     </div>
                 </div>
@@ -479,7 +485,73 @@
     </div>
 </div>
 
+{{-- 📥 MODAL GATEWAY EXPORT EXCEL MULTI-SHEET --}}
+<div class="modal fade text-dark" id="modal-export-excel-gateway" tabindex="-1" aria-hidden="true"
+    style="z-index: 1090;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-warning" style="border-radius: 12px;">
+            <div class="modal-header py-2 px-3" style="background-color: #fe6807;">
+                <h6 class="modal-title fw-bold text-uppercase text-white mb-0"
+                    style="font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="file-spreadsheet" style="width: 14px; height: 14px;"></i>
+                    Setup Export Excel — Rekap APPKSO
+                </h6>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal"
+                    aria-label="Close" style="font-size: 10px;"></button>
+            </div>
 
+            <form id="form-trigger-export-excel">
+                <div class="modal-body p-3 bg-light" style="font-size: 11px;">
+
+                    <div class="alert alert-info border border-info d-flex align-items-start gap-2 mb-3 shadow-sm"
+                        style="font-size: 10px; line-height: 14px; border-radius: 6px;">
+                        <i data-lucide="info" class="text-info flex-shrink-0" style="width: 14px; height: 14px;"></i>
+                        <span class="text-dark fw-bold">
+                            File Excel akan dibuat otomatis dengan <span class="text-danger">1 sheet per
+                                operator</span>.
+                            Nama sheet = nama PIC, isi = rekap kartu SO persis seperti Print Rekap.
+                        </span>
+                    </div>
+
+                    {{-- Info jumlah sheet yang akan di-generate --}}
+                    <div class="mb-3 p-2 bg-white rounded border border-warning text-center">
+                        <span class="text-muted fw-bold" style="font-size: 10px;">Total Sheet yang akan dibuat:</span>
+                        <span id="export-total-sheet-info" class="fw-bold text-danger ms-1"
+                            style="font-size: 13px;">0 Sheet</span>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold mb-1 text-secondary">TANGGAL STOCK OPNAME</label>
+                            <input type="date" id="export-filter-tgl-so"
+                                class="form-control form-control-sm font-monospace fw-bold border-warning" required
+                                style="font-size: 11px;">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold mb-1 text-secondary">TANGGAL POSISI STOCK</label>
+                            <input type="date" id="export-filter-tgl-posisi"
+                                class="form-control form-control-sm font-monospace fw-bold border-warning" required
+                                style="font-size: 11px;">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer py-2 px-3 bg-white border-top">
+                    <button type="button" class="btn btn-xs btn-secondary fw-bold rounded-pill px-3"
+                        data-bs-dismiss="modal" style="font-size: 10px;">Batal</button>
+                    <button type="submit" id="btn-do-export-excel"
+                        class="btn btn-xs fw-bold rounded-pill px-3 text-white"
+                        style="font-size: 10px; background-color: #fe6807; border: none; display: flex; align-items: center; gap: 4px;">
+                        <i data-lucide="download" style="width: 12px; height: 12px;"></i>
+                        Generate & Download Excel
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
 
 <script>
     document.addEventListener('keydown', function(e) {

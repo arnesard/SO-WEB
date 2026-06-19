@@ -11,24 +11,57 @@ class OracleVsFisikTagStockController extends Controller
     /**
      * Memuat filter drop-down awal (Daftar Warehouse Unik)
      */
+    // public function initFilters()
+    // {
+    //     try {
+    //         $warehouses = DB::table('so_all_wh_barcode_monstock_auto_db')
+    //             ->whereNotNull('warehouse')
+    //             ->where('warehouse', '!=', '')
+    //             ->distinct()
+    //             ->orderBy('warehouse', 'asc')
+    //             ->pluck('warehouse');
+
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'warehouses' => $warehouses
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    //     }
+    // }
     public function initFilters()
     {
         try {
+            // Tarik data warehouse beserta tanggal upload terakhir
             $warehouses = DB::table('so_all_wh_barcode_monstock_auto_db')
                 ->whereNotNull('warehouse')
                 ->where('warehouse', '!=', '')
-                ->distinct()
+                ->select('warehouse', DB::raw('MAX(updated_at) as last_upload'))
+                ->groupBy('warehouse')
                 ->orderBy('warehouse', 'asc')
-                ->pluck('warehouse');
+                ->get();
+
+            // Format tanggal jadi dd/mm/yyyy hh:mm:ss
+            $formattedWarehouses = $warehouses->map(function ($item) {
+                $lastUpload = $item->last_upload
+                    ? \Carbon\Carbon::parse($item->last_upload)->format('d/m/Y H:i:s')
+                    : '-';
+
+                return [
+                    'warehouse' => $item->warehouse,
+                    'last_upload' => $lastUpload
+                ];
+            });
 
             return response()->json([
                 'status' => 'success',
-                'warehouses' => $warehouses
+                'warehouses' => $formattedWarehouses // Kirim object, bukan array string biasa
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Ambil daftar operator stock dengan menghilangkan duplikasi nama & no_penneng

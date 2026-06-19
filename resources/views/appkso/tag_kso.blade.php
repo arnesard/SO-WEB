@@ -124,15 +124,14 @@
 
         <!-- Tombol kanan -->
         <div style="display: flex; gap: 8px; align-items: center;">
-<<<<<<< HEAD
-=======
-            <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
+
+            {{-- <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
                 onclick="window.location.href='/appkso/rekap-kso?pic_name={{ urlencode($selectedPIC ?? '') }}'">
                 <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
-                Print Rekap KSO
+                Print Rekap KSO --}}
             </button>
 
->>>>>>> bad3c010e0c3457493b1e20570ac2c6e2f61d196
+
             @if ($rows && $rows->count() > 0)
                 <div>
                     <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm" id="btn-print-now">
@@ -226,10 +225,9 @@
                 $ratusan_digit = $get_digit($qty_str, 3);
                 $puluhan_digit = $get_digit($qty_str, 2);
                 $satuan_digit = $get_digit($qty_str, 1);
-                
                 $get_style = function ($digit, $value) {
                     if ($digit !== null && $digit === (int) $value) {
-                        return 'display:inline-block; text-align:center; height:8px; width:8px; border-radius:50%; border: 8px solid #000; color:transparent !important; box-sizing:border-box;';
+                        return 'display:inline-flex; align-items:center; justify-content:center; height:16px; width:16px; border-radius:50%; border: 2px solid #000; color:#000 !important; box-sizing:border-box; font-size:10px; font-weight:bold;';
                     }
                     return '';
                 };
@@ -244,7 +242,7 @@
                                 KARTU STOCK OPNAME
                                 <p
                                     style="font-size:13px; margin:0; line-height:1; font-family: 'Times New Roman', Times, serif; font-weight: normal;">
-                                    TANGGAL : 22 / DESEMBER / 2025</p>
+                                    TANGGAL : {{ $tanggalSo ?? '-' }}</p>
                                 <p
                                     style="font-size:23px; padding-top:10px; line-height:1;margin-bottom:0; font-family: 'Times New Roman', Times, serif;">
                                     {{ substr($t->item, -1) === '0' ? 'OE' : 'OK' }}</p>
@@ -470,8 +468,8 @@
                             <td colspan="2"
                                 style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px;">
                                 <div
-                                    style="margin:1px auto; text-align:center; font-family: 'Times New Roman', Times, serif;">
-                                    <b>..........</b>
+                                    style="margin:2px auto; text-align:center; font-family: 'Times New Roman', Times, serif;">
+                                    <b>{{ $t->auditor_nama ?? '..........' }}</b>
                                 </div>
                             </td>
                         </tr>
@@ -506,7 +504,7 @@
                                 KARTU STOCK OPNAME
                                 <p
                                     style="font-size:13px; margin:0; line-height:1; font-family: 'Times New Roman', Times, serif; font-weight: normal;">
-                                    TANGGAL : 22 / DESEMBER / 2025</p>
+                                    TANGGAL : {{ $tanggalSo ?? '-' }}</p>
                                 <p
                                     style="font-size:23px; padding-top:10px; line-height:1;margin-bottom:0; font-family: 'Times New Roman', Times, serif;">
                                     {{ substr($t->item, -1) === '0' ? 'OE' : 'OK' }}</p>
@@ -720,8 +718,8 @@
                             <td colspan="2"
                                 style="padding-top:15px;border:none; padding-bottom:1px; text-align:center; text-indent:5px;">
                                 <div
-                                    style="margin:1px auto; text-align:center; font-family: 'Times New Roman', Times, serif;">
-                                    <b>..........</b>
+                                    style="margin:2px auto; text-align:center; font-family: 'Times New Roman', Times, serif;">
+                                    <b>{{ $t->auditor_nama ?? '..........' }}</b>
                                 </div>
                             </td>
                         </tr>

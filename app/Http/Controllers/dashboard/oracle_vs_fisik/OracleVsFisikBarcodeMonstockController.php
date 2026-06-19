@@ -304,4 +304,37 @@ class OracleVsFisikBarcodeMonstockController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Gagal hapus: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Truncate kedua tabel monstock — HANYA DEVELOPER AUTHORIZED
+     */
+    public function truncateAll(Request $request)
+    {
+        $devPassword = 'DEVBPW';
+
+        $inputPassword = trim($request->input('password', ''));
+
+        // ❌ Password salah — tetap return 200, biar JS tangkap di success callback
+        if ($inputPassword !== $devPassword) {
+            return response()->json([
+                'status'  => 'wrong_password',
+                'message' => 'Password yang anda masukan salah!'
+            ], 200); // 👈 200 bukan 403
+        }
+
+        try {
+            DB::statement('TRUNCATE TABLE so_all_wh_barcode_monstock_auto_db');
+            DB::statement('TRUNCATE TABLE so_all_wh_barcode_monstock_db');
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Password benar! Data truncate berhasil dilakukan, DB berhasil dihapus.'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Error saat truncate: ' . $e->getMessage()
+            ], 200); // 👈 200 juga, biar tetap masuk success callback
+        }
+    }
 }

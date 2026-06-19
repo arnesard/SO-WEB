@@ -49,13 +49,13 @@
                     style="font-size: 11px; letter-spacing: 0.5px; background-color: #fe6807; border: none; display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 8px;">
                     <i data-lucide="file-check" style="width: 14px; height: 14px;"></i> Proses Upload Data
                 </button>
-
                 <a href="{{ asset('template/tes tag stok kosong.xlsx') }}" target="_blank"
                     class="btn w-100 btn-sm fw-bold py-2 rounded-pill shadow-sm text-uppercase text-white"
                     style="font-size: 11px; letter-spacing: 0.5px; background-color: #2a5ae0; border: none; display: flex; align-items: center; justify-content: center; gap: 4px;">
                     <i data-lucide="download" style="width: 14px; height: 14px;"></i>
                     File Contoh Upload
                 </a>
+                </button>
             </div>
         </div>
 
@@ -76,6 +76,14 @@
                         style="width: 240px; font-size: 11px; height: 28px;" disabled>
                         <option value="" selected>-- PILIH OPERATOR --</option>
                     </select>
+                    <button type="button" id="btn-validasi-tag"
+                        class="btn btn-xs btn-warning fw-bold text-uppercase text-dark d-none"
+                        style="font-size: 10px; height: 28px; display: flex; align-items: center; gap: 4px;">
+
+                        <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i>
+
+                        VALIDASI
+                    </button>
                 </div>
 
                 <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -112,7 +120,6 @@
             {{-- 📋 CARD TABEL DATA --}}
             <div class="card border border-primary shadow-sm bg-white d-flex flex-column"
                 style="border-radius: 12px; overflow: hidden; flex: 1;">
-
                 <div
                     class="d-flex justify-content-between align-items-center border-bottom pb-2 pt-3 px-3 mb-0 flex-shrink-0">
                     <h6 class="fw-bold text-uppercase mb-0 text-primary"
@@ -146,12 +153,15 @@
                                 <th width="10%" class="text-center bg-light border-dark">Jml Rak</th>
                                 <th width="10%" class="text-end bg-light border-dark">Qty</th>
                                 <th width="10%" class="text-end bg-light border-dark">Jml Aktual</th>
+                                <th width="12%" class="text-center bg-light border-dark d-none" id="th-status">
+                                    Status
+                                </th>
                             </tr>
                         </thead>
 
                         <tbody id="tbody-tagstock-rows">
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-5 border-0">
+                                <td colspan="9" class="text-center text-muted py-5 border-0">
                                     Silakan pilih gudang dan operator untuk menampilkan data.
                                 </td>
                             </tr>
@@ -165,6 +175,7 @@
     </div>{{-- end row --}}
 
     {{-- Hidden form untuk print (diperlukan JS) --}}
+
     <form id="form-tagstock" method="POST" action="/oracle-fisik/tagstock-nonbarcode/print" target="_blank"
         class="d-none">
         @csrf

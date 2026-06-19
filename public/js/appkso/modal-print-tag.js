@@ -52,9 +52,10 @@ document.addEventListener("DOMContentLoaded", function () {
         const pic = modalPicName.value;
         const from = modalDocFrom.value;
         const to = modalDocTo.value;
+        const tanggal = document.getElementById("modalTanggalSo").value; // tambah ini
 
-        if (!pic || !from || !to) {
-            alert("Isi filter dulu!");
+        if (!pic || !from || !to || !tanggal) {
+            alert("Isi semua filter termasuk tanggal!");
             return null;
         }
 
@@ -62,6 +63,7 @@ document.addEventListener("DOMContentLoaded", function () {
             pic_name: pic,
             doc_from: from,
             doc_to: to,
+            tanggal_so: tanggal, // tambah ini
         };
     }
 

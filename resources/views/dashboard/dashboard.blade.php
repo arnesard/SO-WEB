@@ -315,9 +315,10 @@
                                 <button class="btn btn-access btn-access-ovf"
                                     onclick="switchDashboard('section-oracle-fisik', null, 'active-oracle-fisik')">Akses
                                     Modul</button>
+                                {{-- <button class="btn btn-access btn-access-ovf">Akses Modul</button> --}}
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        {{-- <div class="col-md-4">
                             <div class="instruction-card clickable-card card-triple">
                                 <div>
                                     <h6 class="fw-bold">Oracle Vs Barcode Vs Fisik</h6>
@@ -327,7 +328,7 @@
                                     onclick="switchDashboard('section-triple-match', null, 'active-triple-match')">Akses
                                     Modul</button>
                             </div>
-                        </div>
+                        </div> --}}
                     </div>
                 </div>
             </div>
@@ -372,7 +373,7 @@
                     </h5>
                     <div class="d-flex align-items-center gap-2">
                         <div class="btn-group me-2">
-                            <button id="btn-master_size" onclick="switchFisikContent('master_size')"
+                            {{-- <button id="btn-master_size" onclick="switchFisikContent('master_size')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="ruler" class="me-1" style="width: 12px; height: 12px;"></i> MASTER SIZE
@@ -381,54 +382,50 @@
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="user" class="me-1" style="width: 12px; height: 12px;"></i> MASTER PIC
-                            </button>
-                            <button id="btn-barcode_monitoring" onclick="switchFisikContent('barcode_monitoring')"
+                            </button> --}}
+                            {{-- <button id="btn-barcode_monitoring" onclick="switchFisikContent('barcode_monitoring')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="barcode" class="me-1" style="width: 12px; height: 12px;"></i> BARCODE
-                            </button>
+                                MonStock
+                            </button> --}}
                             <button id="btn-tagstock" onclick="switchFisikContent('tagstock')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="file" class="me-1" style="width: 12px; height: 12px;"></i> TAG STOCK
                             </button>
-                            <button id="btn-tagstock" onclick="switchFisikContent('tagstock_nonbarcode')"
+                            <button id="btn-tagstock_nonbarcode" onclick="switchFisikContent('tagstock_nonbarcode')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
-
                                 <i data-lucide="file" class="me-1" style="width: 12px; height: 12px;"></i>
-
                                 TAG STOCK NON BARCODE
                             </button>
-                            <button id="btn-appkso" onclick="switchFisikContent('appkso')"
+                            {{-- <button id="btn-appkso" onclick="switchFisikContent('appkso')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> APPKSO
-                            </button>
-                            <button id="btn-oracle_snapshot" onclick="switchFisikContent('oracle_snapshot')"
+                            </button> --}}
+                            {{-- <button id="btn-oracle_snapshot" onclick="switchFisikContent('oracle_snapshot')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="camera" class="me-1" style="width: 12px; height: 12px;"></i> SNAPSHOT
-                            </button>
+                            </button> --}}
                             {{-- <a href="{{ route('appkso.index') }}"
                                 class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
                                 style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
-                                <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> APPKSO AUTO
-                                BPW
+                                <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> DB AUTO BPW
                             </a> --}}
-                            <button id="btn-default" onclick="switchFisikContent('default')"
+                            {{-- <button id="btn-default" onclick="switchFisikContent('default')"
                                 class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="layout" class="me-1" style="width: 12px; height: 12px;"></i> DASHBOARD
                             </button>
-                            <button id="btn-progress" onclick="switchFisikContent('progress')"
-                                class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
-                                style="font-size: 9px; border-width: 1.5px;">
-
+                            <a href="#" onclick="openProgressFilter(event)"
+                                class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm d-flex align-items-center"
+                                style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
                                 <i data-lucide="activity" class="me-1" style="width: 12px; height: 12px;"></i>
-
                                 PROGRESS
-                            </button>
+                            </a> --}}
                         </div>
                         <button onclick="refreshCurrentFisikPage()"
                             class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
@@ -622,6 +619,7 @@
                             $.getScript(tagstockJsUrl).done(function() {
                                 if (typeof window.initTagStockMenu === 'function') window
                                     .initTagStockMenu();
+
                             });
                         });
                     } else if (menu === 'appkso') {
@@ -678,6 +676,53 @@
                 switchDashboard(savedSection, null, savedClass);
             }
         });
+
+        function openProgressFilter(e) {
+            e.preventDefault();
+
+            // 1. AMBIL DATA LANGSUNG VIA BLADE
+            @php
+                $warehousesList = \Illuminate\Support\Facades\DB::table('so_all_wh_appkso_db')->whereNotNull('warehouse')->where('warehouse', '!=', '')->distinct()->pluck('warehouse');
+            @endphp
+
+            // 2. Rakit opsi select dropdown
+            let whOptions = {
+                '': '-- TAMPILKAN SEMUA WAREHOUSE --' // Opsi default / kosong
+            };
+
+            // 3. Inject data PHP ke JS Object
+            @foreach ($warehousesList as $wh)
+                whOptions["{{ $wh }}"] = "{{ $wh }}";
+            @endforeach
+
+            // 4. Tampilkan SweetAlert (Versi Kompatibel untuk SweetAlert Lama)
+            Swal.fire({
+                title: 'Monitoring Progress',
+                text: 'Pilih Warehouse yang ingin dipantau:',
+                type: 'info', // <--- UBAH 'icon' JADI 'type'
+                input: 'select',
+                inputOptions: whOptions,
+                showCancelButton: true,
+                confirmButtonColor: '#191bdf',
+                cancelButtonColor: '#d33',
+                confirmButtonText: '<i class="fa-solid fa-tv me-1"></i> Buka Layar',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                // <--- UBAH PENGECEKAN JADI ngecek result.value bukan result.isConfirmed
+                if (result.value !== undefined) {
+                    let wh = result.value || '';
+
+                    // Rakit URL
+                    let url = "{{ route('progress.index') }}";
+                    if (wh !== '') {
+                        url += "?warehouse=" + encodeURIComponent(wh);
+                    }
+
+                    // Buka di tab yang sama (Anti Pop-up Blocker)
+                    window.location.href = url;
+                }
+            });
+        }
     </script>
     <script src="{{ asset('js/dashboard/oracle_vs_barcode.js') }}"></script>
 @endsection

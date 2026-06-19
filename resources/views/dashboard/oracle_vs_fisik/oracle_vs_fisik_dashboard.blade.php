@@ -163,28 +163,28 @@
                         <div class="d-flex flex-column justify-content-center w-100">
                             <div class="mb-1">
                                 <span class="badge rounded-pill fw-bold text-uppercase px-2 py-0.5"
-                                    style="font-size: 9px; background-color: rgba(254, 104, 7, 0.15); color: #fe6807; letter-spacing: 0.5px;">
+                                    style="font-size: 10px; background-color: rgba(254, 104, 7, 0.15); color: #fe6807; letter-spacing: 0.5px;">
                                     Variance Grade OE
                                 </span>
                             </div>
 
                             <div class="d-flex align-items-baseline">
                                 <h3 id="oe-variance-pcs" class="text-dark mb-0 fw-black tracking-tight"
-                                    style="font-size: 1.5rem;">0</h3>
-                                <span class="text-muted ms-1" style="font-size: 11px;">Pcs</span>
+                                    style="font-size: 1.875rem;">0</h3>
+                                <span class="text-muted ms-1" style="font-size: 13px;">Pcs</span>
                             </div>
 
                             <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top"
                                 style="border-color: rgba(0,0,0,0.1) !important;">
-                                <div class="d-flex align-items-center text-danger" style="font-size: 11px;">
+                                <div class="d-flex align-items-center text-danger" style="font-size: 12px;">
                                     <i data-lucide="trending-down" class="me-0.5"
-                                        style="width: 12px; height: 12px;"></i>
+                                        style="width: 14px; height: 14px;"></i>
                                     <span id="oe-sku-minus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
-                                <div class="text-muted" style="font-size: 10px;">|</div>
-                                <div class="d-flex align-items-center text-success" style="font-size: 11px;">
-                                    <i data-lucide="trending-up" class="me-0.5" style="width: 12px; height: 12px;"></i>
+                                <div class="text-muted" style="font-size: 11px;">|</div>
+                                <div class="d-flex align-items-center text-success" style="font-size: 12px;">
+                                    <i data-lucide="trending-up" class="me-0.5" style="width: 14px; height: 14px;"></i>
                                     <span id="oe-sku-plus" class="fw-bold ms-1">0</span><span class="ms-0.5 text-muted">
                                         SKU</span>
                                 </div>
@@ -193,7 +193,7 @@
 
                         <!-- Icon Kanan -->
                         <div class="icon-wrapper text-opacity-75 flex-shrink-0 ms-2" style="color: #fe6807;">
-                            <i data-lucide="git-compare" style="width: 24px; height: 24px;"></i>
+                            <i data-lucide="git-compare" style="width: 28px; height: 28px;"></i>
                         </div>
                     </div>
                 </div>
@@ -215,22 +215,22 @@
 
                             <div class="d-flex align-items-baseline">
                                 <h3 id="ok-variance-pcs" class="text-dark mb-0 fw-black tracking-tight"
-                                    style="font-size: 1.5rem;">0</h3>
-                                <span class="text-muted ms-1" style="font-size: 11px;">Pcs</span>
+                                    style="font-size: 1.875rem;">0</h3>
+                                <span class="text-muted ms-1" style="font-size: 13px;">Pcs</span>
                             </div>
 
                             <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top"
                                 style="border-color: rgba(0,0,0,0.1) !important;">
-                                <div class="d-flex align-items-center text-danger" style="font-size: 11px;">
+                                <div class="d-flex align-items-center text-danger" style="font-size: 12px;">
                                     <i data-lucide="trending-down" class="me-0.5"
-                                        style="width: 12px; height: 12px;"></i>
+                                        style="width: 14px; height: 14px;"></i>
                                     <span id="ok-sku-minus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
                                 <div class="text-muted" style="font-size: 10px;">|</div>
-                                <div class="d-flex align-items-center text-success" style="font-size: 11px;">
+                                <div class="d-flex align-items-center text-success" style="font-size: 12px;">
                                     <i data-lucide="trending-up" class="me-0.5"
-                                        style="width: 12px; height: 12px;"></i>
+                                        style="width: 14px; height: 14px;"></i>
                                     <span id="ok-sku-plus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
@@ -239,7 +239,7 @@
 
                         <!-- Icon Kanan -->
                         <div class="icon-wrapper text-opacity-75 flex-shrink-0 ms-2" style="color: #06b6d4;">
-                            <i data-lucide="git-compare" style="width: 24px; height: 24px;"></i>
+                            <i data-lucide="git-compare" style="width: 28px; height: 28px;"></i>
                         </div>
                     </div>
                 </div>
@@ -261,22 +261,22 @@
 
                             <div class="d-flex align-items-baseline">
                                 <h3 id="mix-variance-pcs" class="text-dark mb-0 fw-black tracking-tight"
-                                    style="font-size: 1.5rem;">0</h3>
-                                <span class="text-muted ms-1" style="font-size: 11px;">Pcs</span>
+                                    style="font-size: 1.875rem;">0</h3>
+                                <span class="text-muted ms-1" style="font-size: 13px;">Pcs</span>
                             </div>
 
                             <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top"
                                 style="border-color: rgba(0,0,0,0.1) !important;">
-                                <div class="d-flex align-items-center text-danger" style="font-size: 11px;">
+                                <div class="d-flex align-items-center text-danger" style="font-size: 12px;">
                                     <i data-lucide="trending-down" class="me-0.5"
-                                        style="width: 12px; height: 12px;"></i>
+                                        style="width: 14px; height: 14px;"></i>
                                     <span id="mix-sku-minus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
                                 <div class="text-muted" style="font-size: 10px;">|</div>
-                                <div class="d-flex align-items-center text-success" style="font-size: 11px;">
+                                <div class="d-flex align-items-center text-success" style="font-size: 12px;">
                                     <i data-lucide="trending-up" class="me-0.5"
-                                        style="width: 12px; height: 12px;"></i>
+                                        style="width: 14px; height: 14px;"></i>
                                     <span id="mix-sku-plus" class="fw-bold ms-1">0</span><span
                                         class="ms-0.5 text-muted"> SKU</span>
                                 </div>
@@ -285,7 +285,7 @@
 
                         <!-- Icon Kanan -->
                         <div class="icon-wrapper text-opacity-75 flex-shrink-0 ms-2" style="color: #8b5cf6;">
-                            <i data-lucide="layers" style="width: 24px; height: 24px;"></i>
+                            <i data-lucide="layers" style="width: 28px; height: 28px;"></i>
                         </div>
                     </div>
                 </div>
@@ -306,19 +306,19 @@
                             </div>
                             <div class="d-flex align-items-baseline">
                                 <h3 id="sum-ppm" class="text-dark mb-0 fw-black tracking-tight"
-                                    style="font-size: 1.5rem;">0</h3>
-                                <span class="text-muted ms-1" style="font-size: 11px;">PPM</span>
+                                    style="font-size: 1.875rem;">0</h3>
+                                <span class="text-muted ms-1" style="font-size: 13px;">PPM</span>
                             </div>
                             <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top"
                                 style="border-color: rgba(0,0,0,0.1) !important;">
                                 <div class="d-flex align-items-center text-danger" style="font-size: 11px;">
-                                    <i data-lucide="target" class="me-0.5" style="width: 12px; height: 12px;"></i>
+                                    <i data-lucide="target" class="me-0.5" style="width: 14px; height: 14px;"></i>
                                     <span class="ms-0.5 text-muted">Target : 35 PPM</span>
                                 </div>
                             </div>
                         </div>
                         <div class="icon-wrapper text-warning text-opacity-75 ms-2">
-                            <i data-lucide="gauge" style="width: 24px; height: 24px; color: #f97316;"></i>
+                            <i data-lucide="gauge" style="width: 28px; height: 28px; color: #f97316;"></i>
                         </div>
                     </div>
                 </div>
@@ -331,7 +331,6 @@
                     style="cursor: pointer;">
                     <div class="d-flex align-items-center justify-content-between h-100">
 
-                        <!-- 1. Ganti w-100 jadi flex-grow-1 overflow-hidden agar gak nabrak icon -->
                         <div class="d-flex flex-column justify-content-center flex-grow-1 overflow-hidden pe-2">
                             <div class="mb-1">
                                 <span class="badge rounded-pill fw-bold text-uppercase px-2 py-0.5"
@@ -340,13 +339,11 @@
                                 </span>
                             </div>
 
-                            <!-- 2. Tambah min-height agar area ini setinggi dengan card lainnya -->
                             <div class="d-flex align-items-baseline" style="min-height: 28px;">
                                 <h3 id="sum-price-variance"
                                     class="text-dark mb-0 fw-black tracking-tight text-truncate"
-                                    style="font-size: 1.25rem;">0</h3>
-                                <!-- 3. Pasang text bayangan transparan (visibility: hidden) biar garis bawahnya kedorong lurus -->
-                                <span class="text-muted ms-1" style="font-size: 11px; visibility: hidden;">Rp</span>
+                                    style="font-size: 1.5rem;">0</h3>
+                                <span class="text-muted ms-1" style="font-size: 13px; visibility: hidden;">Rp</span>
                             </div>
 
                             <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top"
@@ -365,9 +362,8 @@
                             </div>
                         </div>
 
-                        <!-- 4. Kasih flex-shrink-0 biar ikon aman gak ketendang keluar kalau teks panjang -->
                         <div class="icon-wrapper text-danger text-opacity-75 ms-1 flex-shrink-0">
-                            <i data-lucide="dollar-sign" style="width: 24px; height: 24px; color: #f43f5e;"></i>
+                            <i data-lucide="dollar-sign" style="width: 28px; height: 28px; color: #f43f5e;"></i>
                         </div>
                     </div>
                 </div>
@@ -389,7 +385,7 @@
 
                             <div class="d-flex align-items-baseline">
                                 <h3 id="sku-percentage" class="text-dark mb-0 fw-black tracking-tight"
-                                    style="font-size: 1.5rem;">0</h3>
+                                    style="font-size: 1.875rem;">0</h3>
                                 <span class="text-muted ms-1" style="font-size: 12px; font-weight: bold;">%</span>
                             </div>
 
@@ -409,7 +405,7 @@
 
                         <!-- Icon Kanan -->
                         <div class="icon-wrapper text-opacity-75 flex-shrink-0 ms-2" style="color: #f59e0b;">
-                            <i data-lucide="percent" style="width: 24px; height: 24px;"></i>
+                            <i data-lucide="percent" style="width: 28px; height: 28px;"></i>
                         </div>
                     </div>
                 </div>
@@ -417,7 +413,6 @@
 
         </div>
     </div>
-
     <!-- MAIN CONTAINER -->
     <div class="col-12" style="height: 55vh; overflow-y: auto; overflow-x: hidden; padding-right: 4px;">
 

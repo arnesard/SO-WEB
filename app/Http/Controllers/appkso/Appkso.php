@@ -93,6 +93,46 @@ class Appkso extends Controller
                 'total_sku' => $items->unique('ItemCode')->count(),
             ])->sortByDesc('total_qty')->values();
 
+        // =========================================================
+        // TAMBAHAN: Hitung Resume PIC Stock (SKU & QTY)
+        // =========================================================
+        $resume_pic = $activities->groupBy('opr')->map(function ($items, $opr) {
+            return (object)[
+                'opr' => $opr,
+                'oprname' => $items->first()->oprname ?? 'Unknown',
+                'total_kso' => $items->count(),
+                'total_sku' => $items->unique('ItemCode')->count(),
+                'total_qty' => $items->sum('QtyStk'),
+            ];
+        })->sortByDesc('total_sku')->values();
+        // =========================================================
+
+        // =========================================================
+        // TAMBAHKAN KODE INI: Menghitung KSO & PCS per Gedung
+        // =========================================================
+        $resume_gedung = [
+            'BPW 1' => ['kso' => 0, 'pcs' => 0],
+            'BPW 2' => ['kso' => 0, 'pcs' => 0],
+            'BPW 3' => ['kso' => 0, 'pcs' => 0],
+        ];
+
+        foreach ($activities as $act) {
+            $noDoc = trim($act->NoDoc ?? '');
+            $prefix = substr($noDoc, 0, 2);
+
+            if ($prefix === 'G1') {
+                $resume_gedung['BPW 1']['kso']++;
+                $resume_gedung['BPW 1']['pcs'] += $act->QtyStk;
+            } elseif ($prefix === 'G2') {
+                $resume_gedung['BPW 2']['kso']++;
+                $resume_gedung['BPW 2']['pcs'] += $act->QtyStk;
+            } elseif ($prefix === 'G3') {
+                $resume_gedung['BPW 3']['kso']++;
+                $resume_gedung['BPW 3']['pcs'] += $act->QtyStk;
+            }
+        }
+        // =========================================================
+
         // 5. Productivity (Top 10 Operator)
         $productivity = DB::connection('mysql_second')
             ->table('cntso')
@@ -106,6 +146,24 @@ class Appkso extends Controller
             ->get();
 
         // Kirim semua variabel ke view
+        $auditorList = DB::connection('mysql')
+            ->table('so_all_wh_pic_auditor_db')
+            ->where('warehouse', 'BPW')
+            ->select('nama', 'gedung', 'lot')
+            ->get();
+
+        $cachedDetail = $activities->map(function ($a) use ($auditorList) {
+            return [
+                'opr'          => $a->opr,
+                'oprname'      => $a->oprname,
+                'auditor_nama' => $this->findAuditorByNokso($a->NoDoc ?? '', $auditorList),
+                'nokso'        => $a->NoDoc,
+                'item'         => $a->ItemCode,
+                'deskripsi'    => $a->description,
+                'qty'          => $a->QtyStk,
+            ];
+        })->values();
+
         return view('appkso.appkso', compact(
             'summary',
             'activities',
@@ -114,8 +172,11 @@ class Appkso extends Controller
             'productivity',
             'resume_oe',
             'resume_ok',
+            'resume_gedung',
             'pic_nokso_map',
-            'pic_list'
+            'pic_list',
+            'resume_pic',
+            'cachedDetail'
         ));
     }
     public function generatePrintPreview(Request $request)
@@ -124,6 +185,29 @@ class Appkso extends Controller
             $pic = trim($request->pic_name);
             $docFrom = $request->doc_from;
             $docTo = $request->doc_to;
+            $tanggalSo = $request->tanggal_so ?? null;
+
+            // Format tanggal: 2025-12-22 → 22 / DESEMBER / 2025
+            $bulanNama = [
+                1 => 'JANUARI',
+                2 => 'FEBRUARI',
+                3 => 'MARET',
+                4 => 'APRIL',
+                5 => 'MEI',
+                6 => 'JUNI',
+                7 => 'JULI',
+                8 => 'AGUSTUS',
+                9 => 'SEPTEMBER',
+                10 => 'OKTOBER',
+                11 => 'NOVEMBER',
+                12 => 'DESEMBER'
+            ];
+
+            $displayTanggal = '-';
+            if ($tanggalSo) {
+                $dt = \Carbon\Carbon::parse($tanggalSo);
+                $displayTanggal = $dt->day . ' / ' . $bulanNama[$dt->month] . ' / ' . $dt->year;
+            }
 
             $db_bcm = 'bcmcfgv1';
 
@@ -165,6 +249,20 @@ class Appkso extends Controller
                 return $row;
             });
 
+            // Ambil list auditor
+            $auditorList = DB::connection('mysql')
+                ->table('so_all_wh_pic_auditor_db')
+                ->where('warehouse', 'BPW')
+                ->select('nama', 'gedung', 'lot')
+                ->get();
+
+            // Inject auditor per nokso
+            $rows = $rows->map(function ($row) use ($auditorList) {
+                $row->auditor_nama = $this->findAuditorByNokso($row->nokso ?? '', $auditorList);
+                return $row;
+            });
+
+
             // Tarik ulang map dokumen untuk validasi dropdown di form blade lamamu
             $all_activities_raw = DB::connection('mysql_second')->table('cntso')->get();
 
@@ -177,14 +275,14 @@ class Appkso extends Controller
                 'text' => $opr
             ])->values();
 
-            // Render file blade secara utuh menjadi string HTML
             $html = view('appkso.tag_kso', [
-                'rows' => $rows,
-                'pics' => $pics,
-                'selectedPIC' => $pic,
-                'docFrom' => $docFrom,
-                'docTo' => $docTo,
-                'picNoksoMap' => $picNoksoMap
+                'rows'         => $rows,
+                'pics'         => $pics,
+                'selectedPIC'  => $pic,
+                'docFrom'      => $docFrom,
+                'docTo'        => $docTo,
+                'picNoksoMap'  => $picNoksoMap,
+                'tanggalSo'    => $displayTanggal, // tambah ini
             ])->render();
 
             return response()->json([
@@ -280,11 +378,7 @@ class Appkso extends Controller
                     <td colspan="2" class="line-number">LINE NUMBER</td>
                 </tr>
 
-                ' . $this->digitRow('GRADE', ': <b>' . $grade . '</b>', 'PLANT : <b>B</b>', $puluhan_ribu_digit) . '
-                ' . $this->digitRow('JENIS', ':', '', $ribuan_digit) . '
-                ' . $this->digitRow('UKURAN', ': <b>' . $t['deskripsi'] . '</b>', '', $ratusan_digit) . '
-                ' . $this->digitRow('CODE', ': <b>' . $t['item'] . '</b>', '', $puluhan_digit) . '
-                ' . $this->digitRow('JUMLAH', ': <b>' . number_format($t['QtyStk'], 0, ',', '.') . ' PCS</b>' . ($sec['show_barcode'] ? '<span class="qty-barcode">*' . $t['QtyStk'] . '*</span>' : ''), '', $satuan_digit) . '
+
 
                 <tr class="section-line">
                     <td colspan="4"></td>
@@ -426,7 +520,7 @@ class Appkso extends Controller
         $pic_map = $masterActivities->keyBy('opr');
 
 
-<<<<<<< HEAD
+
         // 2. QUERY UTAMA UNTUK ISI TABEL REKAP (Baru di-filter pakai PIC jika ada)
         $activitiesQuery = DB::connection('mysql_second')
             ->table('cntso as c')
@@ -446,9 +540,19 @@ class Appkso extends Controller
             ->when($selectedPIC, function ($q) use ($selectedPIC) {
                 $q->where('c.opr', $selectedPIC);
             });
+        // Kalau belum pilih PIC, jangan load data dulu
+        if (!$selectedPIC) {
+            return view('appkso.rekap_kso', [
+                'rows'            => collect(),
+                'pics'            => $masterActivities->pluck('opr')->unique()->values(),
+                'auditor'         => collect([]),
+                'selectedPIC'     => null,
+                'selectedAuditor' => null,
+                'pic_map'         => $masterActivities->keyBy('opr'),
+            ]);
+        }
 
         $activities = $activitiesQuery->get();
-
 
         // 3. MAPPING DESKRIPSI BARANG
         $itemCodes = $activities->pluck('item')->unique()->toArray();
@@ -471,8 +575,25 @@ class Appkso extends Controller
             return $row;
         });
 
+
+        // Ambil list auditor
+        $auditorList = DB::connection('mysql')
+            ->table('so_all_wh_pic_auditor_db')
+            ->where('warehouse', 'BPW')
+            ->select('nama', 'gedung', 'lot')
+            ->get();
+
+        // Inject auditor per nokso
+        $rows = $rows->map(function ($row) use ($auditorList) {
+            $row->auditor_nama = $this->findAuditorByNokso($row->nokso ?? '', $auditorList);
+            return $row;
+        });
+
         // Sementara auditor dikosongkan sesuai bawaan code lama lu
-        $auditor = collect([]);
+        $auditor = $rows->pluck('auditor_nama')
+            ->filter(fn($a) => $a && $a !== '-')
+            ->unique()
+            ->values();
 
         return view('appkso.rekap_kso', compact(
             'rows',
@@ -482,7 +603,7 @@ class Appkso extends Controller
             'selectedAuditor',
             'pic_map'
         ));
-=======
+
         // Ambil filter dari request
         $selectedPIC = $request->pic_name;
         $selectedAuditor = $request->auditor;
@@ -490,14 +611,14 @@ class Appkso extends Controller
         // Query data jika ada filter, jika tidak ada bisa kosong atau ambil semua
         // Tergantung kebutuhan, kita ambil sesuai filter
         $query = DB::connection('mysql_second')->table('cntso');
-        
+
         if ($selectedPIC) {
             $query->where('opr', $selectedPIC);
         }
         if ($selectedAuditor) {
             $query->where('auditor', $selectedAuditor);
         }
-        
+
         // Cek jika filter diisi, barulah tarik data. Jika baru awal buka, biarkan kosong.
         $rows = ($selectedPIC || $selectedAuditor) ? $query->get() : collect();
 
@@ -531,7 +652,6 @@ class Appkso extends Controller
             'selectedAuditor' => $selectedAuditor,
             'auditor' => $auditor,
         ]);
->>>>>>> bad3c010e0c3457493b1e20570ac2c6e2f61d196
     }
     public function generateRekapPreview(Request $request)
     {
@@ -593,11 +713,23 @@ class Appkso extends Controller
 
     public function saveSessionDate(Request $request)
     {
-        session([
-            'tgl_so' => $request->tgl_so
-        ]);
+        $tgl_so = $request->tgl_so;
 
-        return back();
+        // Simpan tgl SO ke session
+        session(['tgl_so' => $tgl_so]);
+
+        // Kembalikan JSON (bukan return back()) agar AJAX blade bisa handle
+        return response()->json([
+            'success'      => true,
+            'tgl_so'       => $tgl_so,
+            'tgl_posisi'   => session('tgl_posisi_stock'),
+        ]);
+    }
+
+    public function saveSessionDatePosisi(Request $request)
+    {
+        session(['tgl_posisi_stock' => $request->tgl_posisi_stock]);
+        return response()->json(['success' => true]);
     }
 
     private function baseCntsoQuery($selected_so = null)
@@ -619,5 +751,349 @@ class Appkso extends Controller
             ->when($selected_so, function ($q) use ($selected_so) {
                 return $q->where('c.so_name', $selected_so);
             });
+    }
+
+    private function findAuditorByNokso(string $nokso, $auditorList): string
+    {
+        // Parse NoDoc: G1B0801 → gedung=BPW01, letter=B, number=8
+        if (!preg_match('/^G(\d+)([A-Z]+)(\d{2})\d{2}$/', trim($nokso), $m)) {
+            return '-';
+        }
+
+        $gedung = 'BPW0' . $m[1];
+        $letter = $m[2];
+        $number = (int) $m[3];
+
+        foreach ($auditorList as $aud) {
+            if (trim($aud->gedung) !== $gedung) continue;
+
+            // Parse lot range: "B01-B65" → letter=B, from=1, to=65
+            if (!preg_match('/^([A-Z]+)(\d+)-[A-Z]+(\d+)$/', trim($aud->lot), $r)) continue;
+
+            if ($r[1] === $letter && $number >= (int)$r[2] && $number <= (int)$r[3]) {
+                return trim($aud->nama);
+            }
+        }
+
+        return '-';
+    }
+
+    public function generateUploadOracleXlsm(Request $request)
+    {
+        $opr    = trim($request->opr);
+        $soName = trim($request->so_name);
+
+        if (!$opr || !$soName) {
+            return response()->json(['success' => false, 'message' => 'Parameter tidak lengkap.'], 400);
+        }
+
+        // 1. Ambil data dari DB
+        $activities = DB::connection('mysql_second')
+            ->table('cntso as c')
+            ->leftJoin('bcmcfgv1.oprbld as o', 'c.opr', '=', 'o.oprcode')
+            ->select('c.NoDoc', 'c.ItemCode', 'c.QtyStk', 'o.oprname')
+            ->where('c.so_name', $soName)
+            ->where(DB::raw('TRIM(c.opr)'), $opr)
+            ->orderBy('c.NoDoc', 'asc')
+            ->get();
+
+        if ($activities->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan untuk operator ini.'], 404);
+        }
+
+        $oprName  = $activities->first()->oprname ?? $opr;
+        $totalSku = $activities->unique('ItemCode')->count();
+        $totalQty = $activities->sum('QtyStk');
+
+        // 2. Cek template
+        $templatePath = storage_path('app/templates/upload_oracle_template.xlsm');
+        if (!file_exists($templatePath)) {
+            return response()->json(['success' => false, 'message' => 'File template tidak ditemukan.'], 500);
+        }
+
+        // 3. Tentukan path output ke shared folder
+        $sharedFolder = 'D:\\00. DATA BARCODE DESKTOP\\00. UPLOAD TAG COUNTS ORACLE';
+        $filename     =  strtoupper(trim($oprName)) . '_' . strtoupper(trim($opr)) . '_' . now()->format('Ymd_His') . '.xlsm';
+        $outputPath   = $sharedFolder . DIRECTORY_SEPARATOR . $filename;
+
+        // Buat folder jika belum ada
+        if (!is_dir($sharedFolder)) {
+            mkdir($sharedFolder, 0755, true);
+        }
+
+        // 4. Copy template ke shared folder
+        if (!copy($templatePath, $outputPath)) {
+            return response()->json(['success' => false, 'message' => 'Gagal menyalin template ke shared folder. Cek permission folder.'], 500);
+        }
+
+        // 5. Inject data via ZipArchive
+        $zip = new \ZipArchive();
+        if ($zip->open($outputPath) !== true) {
+            return response()->json(['success' => false, 'message' => 'Gagal membuka file template.'], 500);
+        }
+
+        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        if (!$sheetXml) {
+            $zip->close();
+            return response()->json(['success' => false, 'message' => 'Sheet XML tidak ditemukan dalam template.'], 500);
+        }
+
+        // 6. Bangun baris XML
+        $rowsXml = '';
+
+        // Info header operator (row 5, 6, 7)
+        $rowsXml .= $this->buildXmlRow(5, ['E' => $oprName]);
+        $rowsXml .= $this->buildXmlRow(6, ['E' => $totalSku]);
+        $rowsXml .= $this->buildXmlRow(7, ['E' => $totalQty]);
+
+        // Header kolom row 12
+        $rowsXml .= $this->buildXmlRow(12, [
+            'A' => 'SysTab',
+            'B' => 'KSO',
+            'C' => 'TAB',
+            'D' => 'ITEM',
+            'E' => 'TAB',
+            'F' => 'SUBINV',
+            'G' => 'TAB',
+            'H' => 'PCS',
+            'I' => 'TAB',
+            'J' => 'QTY',
+            'K' => 'TAB',
+            'L' => 'TAB',
+            'M' => 'TAB',
+            'N' => '*DN',
+        ]);
+
+        // Data rows mulai row 13
+        $row        = 13;
+        $isFirstRow = true;
+        foreach ($activities as $act) {
+            $rowsXml .= $this->buildXmlRow($row, [
+                'A' => $isFirstRow ? 'TAB' : '',
+                'B' => $act->NoDoc,
+                'C' => 'TAB',
+                'D' => $act->ItemCode,
+                'E' => 'TAB',
+                'F' => 'BPW1',
+                'G' => 'TAB',
+                'H' => 'PCS',
+                'I' => 'TAB',
+                'J' => $act->QtyStk,
+                'K' => 'TAB',
+                'L' => 'TAB',
+                'M' => 'TAB',
+                'N' => '*DN',
+            ]);
+            $isFirstRow = false;
+            $row++;
+        }
+
+        // 7. Replace sheetData di XML
+        $newSheetXml = preg_replace(
+            '/<sheetData>.*?<\/sheetData>/s',
+            '<sheetData>' . $rowsXml . '</sheetData>',
+            $sheetXml
+        );
+
+        $zip->addFromString('xl/worksheets/sheet1.xml', $newSheetXml);
+        $zip->close();
+
+        // 8. Return path UNC untuk ditampilkan ke user
+        $uncPath = '\\\\10.129.48.179\\00. DATA BARCODE DESKTOP\\00. UPLOAD TAG COUNTS ORACLE\\' . $filename;
+
+        return response()->json([
+            'success'   => true,
+            'filename'  => $filename,
+            'path'      => $uncPath,
+            'folder'    => '\\\\10.129.48.179\\00. DATA BARCODE DESKTOP\\00. UPLOAD TAG COUNTS ORACLE',
+            'opr'       => strtoupper($oprName),
+            'total_sku' => $totalSku,
+            'total_qty' => number_format($totalQty),
+        ]);
+    }
+
+    // Helper: bangun satu baris XML spreadsheet
+    private function buildXmlRow(int $rowNum, array $cells): string
+    {
+        $colMap = [
+            'A' => 1,
+            'B' => 2,
+            'C' => 3,
+            'D' => 4,
+            'E' => 5,
+            'F' => 6,
+            'G' => 7,
+            'H' => 8,
+            'I' => 9,
+            'J' => 10,
+            'K' => 11,
+            'L' => 12,
+            'M' => 13,
+            'N' => 14,
+        ];
+
+        $cellsXml = '';
+        foreach ($cells as $col => $value) {
+            $ref = $col . $rowNum;
+            if (is_numeric($value) && $value !== '') {
+                $cellsXml .= "<c r=\"{$ref}\"><v>{$value}</v></c>";
+            } else {
+                $escaped   = htmlspecialchars((string)$value, ENT_XML1);
+                $cellsXml .= "<c r=\"{$ref}\" t=\"inlineStr\"><is><t>{$escaped}</t></is></c>";
+            }
+        }
+
+        return "<row r=\"{$rowNum}\">{$cellsXml}</row>";
+    }
+    public function openSharedFolder(Request $request)
+    {
+        $output = [];
+        $returnCode = 0;
+
+        exec('cmd /c start "" "\\\10.129.48.179\00. DATA BARCODE DESKTOP\00. UPLOAD TAG COUNTS ORACLE"', $output, $returnCode);
+
+        return response()->json([
+            'success' => true,
+            'output' => $output,
+            'return_code' => $returnCode
+        ]);
+    }
+
+    // =========================================================
+    // API UNTUK GENERATE DATA EXPORT BA
+    // =========================================================
+    public function getExportBaData(Request $request)
+    {
+        $soName = $request->so_name;
+
+        if (!$soName) {
+            return response()->json(['success' => false, 'message' => 'SO Name tidak boleh kosong.']);
+        }
+
+        try {
+            // 1. Tarik Data Counted (cntso)
+            $countedData = DB::connection('mysql_second')
+                ->table('cntso')
+                ->where('so_name', $soName)
+                ->select('ItemCode', DB::raw('SUM(QtyStk) as counted_qty'))
+                ->groupBy('ItemCode')
+                ->get()
+                ->keyBy('ItemCode');
+
+            // 2. Tarik Data Onhand (snapshot_bpw)
+            $onhandData = DB::connection('mysql')
+                ->table('snapshot_bpw')
+                ->where('so_name', $soName)
+                ->select('ItemCode', DB::raw('SUM(QtyStk) as onhand_qty'))
+                ->groupBy('ItemCode')
+                ->get()
+                ->keyBy('ItemCode');
+
+            // 3. Gabungkan semua ItemCode unik dari kedua tabel
+            $allItemCodes = collect($countedData->keys())
+                ->merge($onhandData->keys())
+                ->unique()
+                ->values()
+                ->toArray();
+
+            // PROTEKSI: Jika benar-benar kosong, langsung return
+            if (empty($allItemCodes)) {
+                return response()->json(['success' => true, 'data' => []]);
+            }
+
+            // 4. Tarik Deskripsi Master Item
+            $masterItems = DB::connection('mysql')
+                ->table('master_items')
+                ->whereIn('item_code_desc', $allItemCodes)
+                ->select('item_code_desc', 'description')
+                ->get()
+                ->keyBy('item_code_desc');
+
+            // 5. Tarik Master Item Similar (LOGIKA DUA ARAH)
+            $similarRecords = DB::connection('mysql')
+                ->table('master_item_similar')
+                ->whereIn('ItemCode', $allItemCodes)
+                ->orWhereIn('ItemCodeSimilar', $allItemCodes)
+                ->get();
+
+            $similarMap = [];
+            foreach ($similarRecords as $sim) {
+                $itemCode = trim($sim->ItemCode);
+                $similarCode = trim($sim->ItemCodeSimilar);
+
+                if (in_array($itemCode, $allItemCodes) && in_array($similarCode, $allItemCodes)) {
+                    $similarMap[$itemCode][] = $similarCode;
+                    $similarMap[$similarCode][] = $itemCode;
+                }
+
+                // if (in_array($itemCode, $allItemCodes)) {
+                //     $similarMap[$itemCode][] = $similarCode;
+                // }
+                // if (in_array($similarCode, $allItemCodes)) {
+                //     $similarMap[$similarCode][] = $itemCode;
+                // }
+            }
+
+            // 6. Rangkai Data Final
+            $result = [];
+            foreach ($allItemCodes as $item) {
+                $counted = $countedData->has($item) ? $countedData[$item]->counted_qty : 0;
+                $onhand  = $onhandData->has($item) ? $onhandData[$item]->onhand_qty : 0;
+                $desc    = $masterItems->has($item) ? $masterItems[$item]->description : '-';
+
+                $similarText = '';
+
+                if (isset($similarMap[$item]) && !empty($similarMap[$item])) {
+                    // Pakai array_unique & array_values agar mencegah duplikasi data jika ada relasi dobel di DB
+                    $similars = array_values(array_unique($similarMap[$item]));
+
+                    // Filter out item itu sendiri (jaga-jaga kalau di tabel similar ada relasi ke diri sendiri)
+                    $similars = array_filter($similars, function ($val) use ($item) {
+                        return $val !== $item;
+                    });
+
+                    if (count($similars) > 0) {
+                        $similarText = 'Size Similar Dengan Item ' . implode(', ', $similars);
+                    }
+                }
+
+                // if (isset($similarMap[$item])) {
+                //     $similars = array_unique($similarMap[$item]);
+                //     $similarText = 'Size Similar Dengan Item ' . implode(', ', $similars);
+                // }
+
+                // =======================================================
+                // LOGIKA BARU: Jika Selisih Fisik 0, kosongkan Penjelasan
+                // =======================================================
+                $selisihFisik = (int)$counted - (int)$onhand;
+                if ($selisihFisik === 0) {
+                    $similarText = ''; // Jangan tampilkan data similar
+                }
+                // =======================================================
+
+                $result[] = [
+                    'item'    => $item,
+                    'desc'    => $desc,
+                    'onhand'  => (int)$onhand,
+                    'counted' => (int)$counted,
+                    'similar' => $similarText
+                ];
+            }
+
+            // Urutkan berdasarkan Kode Item A-Z
+            usort($result, function ($a, $b) {
+                return strcmp($a['item'], $b['item']);
+            });
+
+            return response()->json([
+                'success' => true,
+                'data'    => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ]);
+        }
     }
 }

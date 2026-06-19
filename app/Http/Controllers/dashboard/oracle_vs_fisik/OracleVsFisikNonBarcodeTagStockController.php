@@ -44,54 +44,78 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
 
             $item    = strtoupper(trim($row[1] ?? ''));
             $loccode = strtoupper(trim($row[13] ?? ''));
+            $qty     = (int)($row[4] ?? 0);
+            $oem     = (int)($row[10] ?? 0);
+            $rackcode = $row[0] ?? null;
 
-            // Generate no_doc per baris berdasarkan loccode
-            if (empty($loccode) || $loccode === '-' || $loccode === '~') {
-                $noDoc = $loccode ?: '-';
+            // B. LOGIKA BYPASS GRADE OEM DAN SPLIT ITEM (-0 / -1)
+            $isForcedOem = (substr($item, 0, 2) === 'TH' || substr($item, -2) === 'SP');
+
+            $rawSplitRecords = [];
+            if ($isForcedOem) {
+                $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $qty, 'oem' => $qty];
             } else {
-                $historyKey = $loccode . '@' . $item;
-
-                if (isset($historicalDocMap[$historyKey])) {
-                    // Pakai no_doc lama supaya konsisten
-                    $noDoc = $historicalDocMap[$historyKey];
+                if ($oem == $qty) {
+                    $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $oem, 'oem' => $oem];
+                } elseif ($oem == 0) {
+                    $rawSplitRecords[] = ['item' => $item . '-1', 'qty' => $qty, 'oem' => 0];
                 } else {
-                    // Generate baru: G + char ke-5 dari loccode + suffix setelah char ke-6 + 2-digit sequence
-                    $prefixDoc   = 'G';
-                    $char5       = (strlen($loccode) >= 5) ? substr($loccode, 4, 1) : '0';
-                    $suffixLoc   = (strlen($loccode) >= 7) ? substr($loccode, 6) : 'UNKNOWN';
-                    $prefixNoDoc = $prefixDoc . $char5 . $suffixLoc;
-
-                    if (!isset($maxSequencePerPrefix[$prefixNoDoc])) {
-                        $maxSequencePerPrefix[$prefixNoDoc] = 0;
-
-                        foreach ($historicalDocMap as $oldDoc) {
-                            if (strpos($oldDoc, $prefixNoDoc) === 0) {
-                                $seqNumber = intval(substr($oldDoc, -2));
-                                if ($seqNumber > $maxSequencePerPrefix[$prefixNoDoc]) {
-                                    $maxSequencePerPrefix[$prefixNoDoc] = $seqNumber;
-                                }
-                            }
-                        }
-                    }
-
-                    $maxSequencePerPrefix[$prefixNoDoc]++;
-                    $noDoc = $prefixNoDoc . str_pad($maxSequencePerPrefix[$prefixNoDoc], 2, '0', STR_PAD_LEFT);
-
-                    $historicalDocMap[$historyKey] = $noDoc;
+                    $rawSplitRecords[] = ['item' => $item . '-0', 'qty' => $oem, 'oem' => $oem];
+                    $rawSplitRecords[] = ['item' => $item . '-1', 'qty' => ($qty - $oem), 'oem' => 0];
                 }
             }
 
-            $insertData[] = [
-                'warehouse'    => $warehouse,
-                'rackcode'     => $row[0] ?? null,
-                'item'         => $item,
-                'qty'          => (int)($row[4] ?? 0),
-                'oem'          => (int)($row[10] ?? 0),
-                'loccode'      => $loccode,
-                'upload_batch' => $noDoc,
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ];
+            foreach ($rawSplitRecords as $split) {
+                $splitItem = $split['item'];
+
+                // Generate no_doc per baris berdasarkan loccode & splitItem
+                if (empty($loccode) || $loccode === '-' || $loccode === '~') {
+                    $noDoc = $loccode ?: '-';
+                } else {
+                    $historyKey = $loccode . '@' . $splitItem;
+
+                    if (isset($historicalDocMap[$historyKey])) {
+                        // Pakai no_doc lama supaya konsisten
+                        $noDoc = $historicalDocMap[$historyKey];
+                    } else {
+                        // Generate baru: G + char ke-5 dari loccode + suffix setelah char ke-6 + 2-digit sequence
+                        $prefixDoc   = 'G';
+                        $char5       = (strlen($loccode) >= 5) ? substr($loccode, 4, 1) : '0';
+                        $suffixLoc   = (strlen($loccode) >= 7) ? substr($loccode, 6) : 'UNKNOWN';
+                        $prefixNoDoc = $prefixDoc . $char5 . $suffixLoc;
+
+                        if (!isset($maxSequencePerPrefix[$prefixNoDoc])) {
+                            $maxSequencePerPrefix[$prefixNoDoc] = 0;
+
+                            foreach ($historicalDocMap as $oldDoc) {
+                                if (strpos($oldDoc, $prefixNoDoc) === 0) {
+                                    $seqNumber = intval(substr($oldDoc, -2));
+                                    if ($seqNumber > $maxSequencePerPrefix[$prefixNoDoc]) {
+                                        $maxSequencePerPrefix[$prefixNoDoc] = $seqNumber;
+                                    }
+                                }
+                            }
+                        }
+
+                        $maxSequencePerPrefix[$prefixNoDoc]++;
+                        $noDoc = $prefixNoDoc . str_pad($maxSequencePerPrefix[$prefixNoDoc], 2, '0', STR_PAD_LEFT);
+
+                        $historicalDocMap[$historyKey] = $noDoc;
+                    }
+                }
+
+                $insertData[] = [
+                    'warehouse'    => $warehouse,
+                    'rackcode'     => $rackcode,
+                    'item'         => $splitItem,
+                    'qty'          => $split['qty'],
+                    'oem'          => $split['oem'],
+                    'loccode'      => $loccode,
+                    'upload_batch' => $noDoc,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ];
+            }
         }
 
         if (empty($insertData)) {
@@ -142,20 +166,31 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
         }
 
         try {
-            $operators = DB::table('so_all_wh_pic_stock_db')
-                ->where('warehouse', $warehouse)
-                ->whereNotNull('no_penneng')
-                ->where('no_penneng', '!=', '')
+            // SESUDAH ✅
+            $operators = DB::table('so_all_wh_pic_stock_db as p')
+                ->where('p.warehouse', $warehouse)
+                ->whereNotNull('p.no_penneng')
+                ->where('p.no_penneng', '!=', '')
+                ->whereExists(function ($sub) use ($warehouse) {
+                    $sub->select(DB::raw(1))
+                        ->from('so_all_wh_non_barcode_tagstock_db as nb')
+                        ->where('nb.warehouse', $warehouse)
+                        ->where(function ($q) {
+                            $q->whereRaw("nb.loccode LIKE CONCAT(UPPER(TRIM(p.gedung)), '-%')")
+                                ->whereRaw("SUBSTRING_INDEX(nb.loccode, '-', -1) BETWEEN
+                      SUBSTRING_INDEX(p.lot, '-', 1)
+                      AND SUBSTRING_INDEX(p.lot, '-', -1)");
+                        });
+                })
                 ->select(
-                    'no_penneng',
-                    'nama',
-                    'gedung',
-                    DB::raw("GROUP_CONCAT(lot ORDER BY lot ASC SEPARATOR ', ') as combined_lot")
+                    'p.no_penneng',
+                    'p.nama',
+                    'p.gedung',
+                    DB::raw("GROUP_CONCAT(p.lot ORDER BY p.lot ASC SEPARATOR ', ') as combined_lot")
                 )
-                ->groupBy('no_penneng', 'nama', 'gedung')
-                ->orderBy('nama', 'asc')
+                ->groupBy('p.no_penneng', 'p.nama', 'p.gedung')
+                ->orderBy('p.nama', 'asc')
                 ->get();
-
             return response()->json([
                 'status' => 'success',
                 'operators' => $operators
@@ -168,7 +203,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
     public function processRows(Request $request)
     {
         $warehouse  = $request->warehouse;
-        $operatorId = $request->operator_id; // no_penneng
+        $operatorId = $request->operator_id;
         $docStart   = $request->doc_start;
         $docEnd     = $request->doc_end;
 
@@ -177,7 +212,7 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
         }
 
         try {
-            // 1. Ambil SEMUA baris PIC yang memiliki no_penneng tersebut
+            // 1. Ambil PIC
             $picInfos = DB::table('so_all_wh_pic_stock_db')
                 ->where('no_penneng', $operatorId)
                 ->where('warehouse', $warehouse)
@@ -187,90 +222,129 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'PIC tidak ditemukan'], 404);
             }
 
-            // 2. Siapkan array filter lot
+            // 2. Lot filters
             $lotFilters = [];
             foreach ($picInfos as $pic) {
-                $gedung = strtoupper(trim($pic->gedung));
-                $lotRaw = trim($pic->lot);
-                $lotParts = explode('-', $lotRaw);
+                $gedung   = strtoupper(trim($pic->gedung));
+                $lotParts = explode('-', trim($pic->lot));
                 $lotFilters[] = [
                     'gedung' => $gedung,
                     'awal'   => trim($lotParts[0]),
-                    'akhir'  => trim($lotParts[1] ?? $lotParts[0])
+                    'akhir'  => trim($lotParts[1] ?? $lotParts[0]),
                 ];
             }
 
-            // 3. Query utama
-            $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
-                ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                    $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
-                        ->on('a.warehouse', '=', 'm.warehouse');
-                });
+            // 3. Subquery appkso
+            $subAppkso = DB::table('so_all_wh_appkso_db')
+                ->select(
+                    DB::raw('TRIM(UPPER(nokso)) as nokso'),
+                    DB::raw('TRIM(UPPER(item)) as item'),
+                    DB::raw('SUM(qty) as total_qty')
+                )
+                ->groupBy('nokso', 'item');
 
-            // 4. Pastikan data tidak bocor keluar dari warehouse yang dipilih
-            $query->where('a.warehouse', $warehouse)
+            // 4. Subquery RAK — hitung COUNT(DISTINCT rackcode) per loccode+item TANPA GROUP BY di query utama
+            $subRak = DB::table('so_all_wh_non_barcode_tagstock_db')
+                ->select(
+                    'warehouse',
+                    'loccode',
+                    'item',
+                    DB::raw('COUNT(DISTINCT rackcode) as jumlah_rak')
+                )
+                ->where('warehouse', $warehouse)
+                ->groupBy('warehouse', 'loccode', 'item');
+
+            // 5. Query utama
+            $rows = DB::table('so_all_wh_non_barcode_tagstock_db as t')
+
+                ->leftJoinSub($subAppkso, 'a', function ($join) {
+                    $join->on(DB::raw('TRIM(UPPER(t.upload_batch))'), '=', 'a.nokso')
+                        ->on(DB::raw('TRIM(UPPER(t.item))'), '=', 'a.item');
+                })
+
+                ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
+                    $join->on('t.item', '=', 'm.item')
+                        ->on('t.warehouse', '=', 'm.warehouse');
+                })
+
+                // 🔥 JOIN subquery RAK
+                ->leftJoinSub($subRak, 'r', function ($join) {
+                    $join->on('t.warehouse', '=', 'r.warehouse')
+                        ->on('t.loccode', '=', 'r.loccode')
+                        ->on('t.item', '=', 'r.item');
+                })
+
+                ->where('t.warehouse', $warehouse)
+
                 ->where(function ($q) use ($lotFilters) {
                     foreach ($lotFilters as $filter) {
                         $q->orWhere(function ($sub) use ($filter) {
-                            $sub->where('a.loccode', 'LIKE', $filter['gedung'] . '-%')
-                                ->whereBetween(DB::raw("SUBSTRING_INDEX(a.loccode, '-', -1)"), [
+                            $sub->where('t.loccode', 'LIKE', $filter['gedung'] . '-%')
+                                ->whereBetween(DB::raw("SUBSTRING_INDEX(t.loccode, '-', -1)"), [
                                     $filter['awal'],
-                                    $filter['akhir']
+                                    $filter['akhir'],
                                 ]);
                         });
                     }
-                });
+                })
 
-            // 5. Filter DOC
-            if ($docStart && $docEnd) {
-                $query->whereBetween('a.upload_batch', [$docStart, $docEnd]);
-            }
+                ->when($docStart && $docEnd, function ($q) use ($docStart, $docEnd) {
+                    $q->whereBetween('t.upload_batch', [$docStart, $docEnd]);
+                })
 
-            $rows = $query
                 ->select(
-                    'a.id',
-                    'a.loccode as lot_display',
-                    'a.upload_batch as no_doc',
-                    'a.item',
-                    'm.description as description_master',
-                    'a.qty'
+                    't.upload_batch as no_doc',
+                    't.loccode',
+                    't.item',
+                    'm.description as description',
+                    'r.jumlah_rak as Rak',                  // ✅ dari subquery
+                    DB::raw('SUM(t.qty) as qty'),            // ✅ total qty
+                    DB::raw('MAX(a.total_qty) as actual_qty'),
+                    DB::raw("
+                    CASE
+                        WHEN MAX(a.total_qty) IS NULL THEN 'BELUM'
+                        WHEN SUM(t.qty) = MAX(a.total_qty) THEN 'SESUAI'
+                        ELSE 'TIDAK SESUAI'
+                    END as status_validasi
+                ")
                 )
-                ->orderBy('a.upload_batch', 'asc')
+
+                ->groupBy('t.upload_batch', 't.loccode', 't.item', 'm.description', 'r.jumlah_rak')
+                ->orderBy('t.upload_batch', 'asc')
                 ->get();
 
             $data = $rows->map(function ($row) {
                 return [
-                    'id' => $row->id,
-                    'lot_display' => $row->lot_display,
-                    'no_doc' => $row->no_doc,
-                    'item' => $row->item,
-                    'description' => $row->description_master,
-                    'Rak' => 1,
-                    'Qty' => $row->qty
+                    'lot_display'     => $row->loccode,
+                    'no_doc'          => $row->no_doc,
+                    'item'            => $row->item,
+                    'description'     => $row->description,
+                    'Rak'             => $row->Rak,
+                    'Qty'             => $row->qty,
+                    'actual_qty'      => $row->actual_qty,
+                    'status_validasi' => $row->status_validasi,
                 ];
             });
 
             return response()->json([
-                'status' => 'success',
-                'master_data' => $data
+                'status'      => 'success',
+                'master_data' => $data,
             ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
-
     public function printTagStock(Request $request)
     {
-        $warehouse   = $request->warehouse;
-        $operatorId  = $request->operator_id; // no_penneng
-        $docStart    = $request->doc_start;
-        $docEnd      = $request->doc_end;
+        $warehouse  = $request->warehouse;
+        $operatorId = $request->operator_id;
+        $docStart   = $request->doc_start;
+        $docEnd     = $request->doc_end;
 
         if (empty($warehouse) || empty($operatorId)) {
             return back()->with('error', 'Filter belum lengkap');
         }
 
-        // Ambil semua data PIC berdasarkan no_penneng
         $picInfos = DB::table('so_all_wh_pic_stock_db')
             ->where('no_penneng', $operatorId)
             ->where('warehouse', $warehouse)
@@ -282,20 +356,36 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
 
         $lotFilters = [];
         foreach ($picInfos as $pic) {
-            $gedung = strtoupper(trim($pic->gedung));
+            $gedung   = strtoupper(trim($pic->gedung));
             $lotParts = explode('-', trim($pic->lot));
             $lotFilters[] = [
                 'gedung' => $gedung,
                 'awal'   => trim($lotParts[0]),
-                'akhir'  => trim($lotParts[1] ?? $lotParts[0])
+                'akhir'  => trim($lotParts[1] ?? $lotParts[0]),
             ];
         }
 
-        // Query utama
-        $query = DB::table('so_all_wh_non_barcode_tagstock_db as a')
+        // 🔥 Subquery RAK — hitung COUNT(DISTINCT rackcode) per loccode+item
+        $subRak = DB::table('so_all_wh_non_barcode_tagstock_db')
+            ->select(
+                'warehouse',
+                'loccode',
+                'item',
+                DB::raw('COUNT(DISTINCT rackcode) as jumlah_rak')
+            )
+            ->where('warehouse', $warehouse)
+            ->groupBy('warehouse', 'loccode', 'item');
+
+        $rows = DB::table('so_all_wh_non_barcode_tagstock_db as a')
             ->leftJoin('so_all_wh_master_size_db as m', function ($join) {
-                $join->on('a.item', '=', DB::raw("SUBSTRING_INDEX(m.item, '-', 1)"))
+                $join->on('a.item', '=', 'm.item')
                     ->on('a.warehouse', '=', 'm.warehouse');
+            })
+            // 🔥 JOIN subquery RAK
+            ->leftJoinSub($subRak, 'r', function ($join) {
+                $join->on('a.warehouse', '=', 'r.warehouse')
+                    ->on('a.loccode', '=', 'r.loccode')
+                    ->on('a.item', '=', 'r.item');
             })
             ->where('a.warehouse', $warehouse)
             ->where(function ($q) use ($lotFilters) {
@@ -304,43 +394,54 @@ class OracleVsFisikNonBarcodeTagStockController extends Controller
                         $sub->where('a.loccode', 'LIKE', $filter['gedung'] . '-%')
                             ->whereBetween(DB::raw("SUBSTRING_INDEX(a.loccode, '-', -1)"), [
                                 $filter['awal'],
-                                $filter['akhir']
+                                $filter['akhir'],
                             ]);
                     });
                 }
             })
             ->when($docStart && $docEnd, function ($q) use ($docStart, $docEnd) {
                 $q->whereBetween('a.upload_batch', [$docStart, $docEnd]);
-            });
-
-        $rows = $query->select(
-            'a.upload_batch as no_doc',
-            'a.item',
-            'a.rackcode',
-            'a.qty',
-            'a.loccode',
-            'm.description as description_master'
-        )->orderBy('a.upload_batch')->get();
+            })
+            ->select(
+                'a.upload_batch as no_doc',
+                'a.item',
+                'a.loccode',
+                'm.description as description_master',
+                'r.jumlah_rak as rak_count',        // ✅ jumlah rak unik
+                DB::raw('SUM(a.qty) as total_qty'),  // ✅ qty digabung
+                DB::raw("
+                CASE
+                    WHEN RIGHT(a.item, 1) = '0' THEN SUM(a.qty)
+                    ELSE 0
+                END as oe_qty
+            "),
+                DB::raw("
+                CASE
+                    WHEN RIGHT(a.item, 1) != '0' THEN SUM(a.qty)
+                    ELSE 0
+                END as ok_qty
+            ")
+            )
+            ->groupBy('a.upload_batch', 'a.loccode', 'a.item', 'm.description', 'r.jumlah_rak')
+            ->orderBy('a.upload_batch', 'asc')
+            ->get();
 
         if ($rows->isEmpty()) {
             return back()->with('error', 'Data tidak ditemukan untuk dicetak');
         }
 
-        // Mapping data agar sesuai dengan blade tag_stock_rev
         $data = $rows->map(function ($t) {
-            $isOe = str_ends_with($t->item, '0');
             return [
                 'noDoc'       => $t->no_doc,
                 'item'        => $t->item,
                 'description' => $t->description_master ?? '-',
-                'rackcode'    => 1, // Di set 1 rak seperti di processRows
-                'oe'          => $isOe ? ($t->qty ?? 0) : 0,
-                'ok'          => !$isOe ? ($t->qty ?? 0) : 0,
-                'loccode'     => $t->loccode ?? $t->rackcode ?? '-',
+                'rackcode'    => $t->rak_count ?? 1,   // ✅ jumlah rak
+                'oe'          => $t->oe_qty ?? 0,
+                'ok'          => $t->ok_qty ?? 0,
+                'loccode'     => $t->loccode ?? '-',
             ];
         });
 
-        // Kumpulkan data display untuk print header
         $picNameDisplay = $picInfos->first()->nama;
         $gedungDisplay  = $picInfos->pluck('gedung')->unique()->implode(', ');
         $lotDisplay     = $picInfos->pluck('lot')->implode(', ');

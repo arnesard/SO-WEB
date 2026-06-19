@@ -10,7 +10,17 @@ class OracleVsFisikController extends Controller
 {
     public function index()
     {
-        return view('dashboard.oracle_vs_fisik.oracle_vs_fisik');
+        // 1. AMBIL DATA WAREHOUSE UNTUK DROPDOWN SWEETALERT
+        $warehouses = DB::table('so_all_wh_appkso_db')
+            ->select('warehouse')
+            ->whereNotNull('warehouse')
+            ->where('warehouse', '!=', '')
+            ->distinct()
+            ->pluck('warehouse');
+
+        return view('dashboard.oracle_vs_fisik.oracle_vs_fisik', [
+            'warehouses' => $warehouses
+        ]);
     }
 
     public function switchMenu(Request $request)
@@ -18,8 +28,9 @@ class OracleVsFisikController extends Controller
         $menu = $request->query('menu');
 
         if ($menu === 'progress') {
-            return app(\App\Http\Controllers\dashboard\ProgressController::class)
-                ->index();
+            // 2. PERBAIKAN NAMA CONTROLLER PROGRESS
+            return app(\App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikProgressSOController::class)
+                ->index($request);
         }
 
         $viewPath = match ($menu) {
@@ -33,6 +44,18 @@ class OracleVsFisikController extends Controller
             'default'            => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_dashboard',
             default              => 'dashboard.oracle_vs_fisik.oracle_vs_fisik_dashboard',
         };
+
+        // 3. JIKA MENU DEFAULT, KIRIM DATA WAREHOUSE JUGA
+        if ($menu === 'default' || $menu === null) {
+            $warehouses = DB::table('so_all_wh_appkso_db')
+                ->select('warehouse')
+                ->whereNotNull('warehouse')
+                ->where('warehouse', '!=', '')
+                ->distinct()
+                ->pluck('warehouse');
+
+            return view($viewPath, ['warehouses' => $warehouses])->render();
+        }
 
         return view($viewPath)->render();
     }

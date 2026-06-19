@@ -4,7 +4,8 @@
     <div class="w-100 d-flex align-items-center justify-content-between pb-3 mb-2 border-bottom flex-shrink-0 no-print">
 
         <div class="d-flex align-items-center gap-2">
-            <select id="tag-filter-wh" class="form-select form-select-sm fw-bold border-primary" style="width: 160px;">
+            <select id="tag-filter-wh" class="form-select form-select-sm fw-bold border-primary"
+                style="width: auto; min-width: 250px; max-width: 350px;">
                 <option value="" selected>⏳ MEMUAT GUDANG...</option>
             </select>
 
@@ -16,16 +17,20 @@
             <button type="button" id="btn-print-massal-tag"
                 class="btn btn-sm btn-success fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center"
                 onclick="openTagStockPrintEngine()">
-                <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Print Rekap
+                <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Rekap
             </button>
 
             <button type="button" id="btn-validasi-tag"
-                class="btn btn-sm btn-warning fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark">
+                class="btn btn-sm btn-warning fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark"
+                data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Membandingkan Data Monitoring Stock Barcode dengan Hasil Scan (APPKSO)">
                 <i data-lucide="check-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi
             </button>
 
             <button type="button" id="btn-cek-doc"
-                class="btn btn-sm btn-info fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark ms-1">
+                class="btn btn-sm btn-info fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark ms-1"
+                data-bs-toggle="tooltip" data-bs-placement="top"
+                title="Membandingkan Data Monitoring Stock Barcode dengan Hasil Scan (APPKSO)">
                 <i data-lucide="file-search" class="me-1" style="width: 14px; height: 14px;"></i> Cek Doc
             </button>
         </div>

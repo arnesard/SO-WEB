@@ -60,6 +60,10 @@
                         <!-- TAB 1: FILTER DATA -->
                         <div class="tab-pane fade show active" id="tabFilter" role="tabpanel">
                             <div class="row g-3">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Tanggal Stock Opname</label>
+                                    <input type="date" id="modalTanggalSo" class="form-control" required>
+                                </div>
                                 <!-- PIC Selection -->
                                 <div class="col-md-12">
                                     <label class="form-label fw-bold">
@@ -67,9 +71,9 @@
                                     </label>
                                     <select id="modalPicName" class="form-select" required>
                                         <option value="">-- Pilih PIC --</option>
-                                        @foreach ($activities->unique('opr') as $act)
+                                        @foreach ($activities->unique('opr')->sortBy('oprname') as $act)
                                             <option value="{{ $act->opr }}">
-                                                {{ $act->opr }} - {{ $act->oprname }}
+                                                {{ $act->oprname }} - ( {{ $act->opr }} )
                                             </option>
                                         @endforeach
                                     </select>

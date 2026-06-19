@@ -14,8 +14,20 @@ use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikAppksoController
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikPicController;
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikTagStockController;
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikSnapshotController;
-use App\Http\Controllers\dashboard\ProgressController;
+use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikProgressSOController;
 use App\Http\Controllers\dashboard\oracle_vs_fisik\OracleVsFisikNonBarcodeTagStockController;
+use App\Http\Controllers\appkso\SnapShotController;
+use App\Http\Controllers\appkso\MasterItemController as AppksoMasterItemController;
+use App\Http\Controllers\appkso\MasterPicController;
+use App\Http\Controllers\appkso\BarcodeMonStockController;
+use App\Http\Controllers\appkso\TagStockController;
+use App\Http\Controllers\appkso\NonBarcode;
+use App\Http\Controllers\so_karantina\SoKarantinaController;
+use App\Http\Controllers\so_karantina\UploadBstbController;
+use App\Http\Controllers\so_karantina\SpesialEntriKarantinaController;
+use App\Http\Controllers\so_karantina\RevisiKsoKarantinaController;
+use App\Http\Controllers\so_karantina\ValidasiKsoKarantinaController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -78,6 +90,7 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
             Route::get('/data', 'getData')->name('data');
             Route::post('/import', 'import')->name('import');
             Route::delete('/delete/{id}', 'destroy')->name('delete');
+            Route::post('/truncate-all', 'truncateAll')->name('truncate-all');
         });
 
     // 3.3. Master PIC & Auditor Area
@@ -115,6 +128,7 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
             Route::post('/validasi-appkso', 'validateAppkso')->name('validasi-appkso')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
             Route::post('/cek-doc', 'checkDoc')->name('cek-doc')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
             Route::post('/scan-history', 'getScanHistory')->name('scan-history')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::get('/get-so-names-cntso', 'getSoNamesCntso')->name('get-so-names-cntso');
         });
 
     // 3.5.1. Modul Tag Stock NON Barcode
@@ -125,10 +139,9 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
             Route::get('/init-filters', 'initFilters');
             Route::get('/operators', 'getOperatorsByWarehouse');
             Route::post('/process-rows', 'processRows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/update-actual', 'updateActualQty')
+                ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
             Route::match(['get', 'post'], '/print', 'printTagStock')->name('print');
-            Route::get('/template', function () {
-                return response()->download(public_path('template/tes_tag_stok_kosong.xlsx'));
-            })->name('tagstock-nonbarcode.template');
         });
 
     // 3.6. Modul Snapshot Oracle
@@ -147,15 +160,80 @@ Route::prefix('oracle-fisik')->name('oracle_fisik.')->group(function () {
 // 4. MODUL SCAN APPKSO UTAMA
 // =========================================================================
 Route::prefix('appkso')->group(function () {
+    // === ROUTE CORE APPKSO SCAN ===
     Route::get('/', [Appkso::class, 'index'])->name('appkso.index');
     Route::post('/fetch-tag-data', [Appkso::class, 'fetchTagKSOData'])->name('appkso.fetch-tag-data');
     Route::post('/print-preview', [Appkso::class, 'generatePrintPreview'])->name('appkso.print-preview');
     Route::get('/rekap-kso', [Appkso::class, 'rekapKso'])->name('rekap.kso');
     Route::post('/print-rekap-preview', [Appkso::class, 'generateRekapPreview'])->name('appkso.print-rekap-preview');
     Route::post('/save-session-date', [Appkso::class, 'saveSessionDate'])->name('save.session.date');
+
+    // === ROUTE MASTER ITEM (Harus mandiri karena data_master tidak punya output JSON) ===
+    Route::get('/master-item', [AppksoMasterItemController::class, 'index'])->name('appkso.master_item.index');
+    Route::get('/master-item/data', [AppksoMasterItemController::class, 'getData'])->name('appkso.master_item.data');
+    Route::post('/master-store', [AppksoMasterItemController::class, 'store']);
+    Route::post('/master-update/{id}', [AppksoMasterItemController::class, 'update']);
+    Route::delete('/master-delete/{id}', [AppksoMasterItemController::class, 'destroy']);
+
+    // ★ ROUTE BARU: Item Code List untuk autocomplete
+    Route::get('/master-item/itemcode-list', [AppksoMasterItemController::class, 'getItemCodeList'])
+        ->name('appkso.master_item.itemcode_list');
+
+    // ★ ROUTE BARU: Master Item Similar (CRUD)
+    Route::get('/similar-item/data', [AppksoMasterItemController::class, 'getSimilarData'])
+        ->name('appkso.similar_item.data');
+    Route::post('/similar-store', [AppksoMasterItemController::class, 'storeSimilar']);
+    Route::post('/similar-update/{id}', [AppksoMasterItemController::class, 'updateSimilar']);
+    Route::delete('/similar-delete/{id}', [AppksoMasterItemController::class, 'destroySimilar'])
+        ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+
+    // === ROUTE HALAMAN VIEW (Data dikelola oleh modul OracleVsFisik / Data Master) ===
+    Route::get('/master-pic', [MasterPicController::class, 'index'])->name('appkso.master_pic.index');
+    Route::get('/barcode-mon-stock', [BarcodeMonStockController::class, 'index'])->name('appkso.barcode_mon_stock.index');
+
+    // 👈 TAMBAHKAN BARIS INI UNTUK NON BARCODE
+    Route::get('/non-barcode', [NonBarcode::class, 'index'])->name('appkso.non_barcode.index');
+
+    // ROUTE BARU UNTUK EXPORT BA
+    Route::get('/export-ba-data', [Appkso::class, 'getExportBaData'])->name('appkso.export_ba_data');
+
+    Route::get('/tag-stock', [TagStockController::class, 'index'])->name('appkso.tag_stock.index');
+
+    Route::post('/test-validasi', [TagStockController::class, 'testValidasi']);
+
+    Route::controller(TagStockController::class)
+        ->prefix('tag-stock')
+        ->name('appkso.tag_stock.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/init-filters', 'initFilters')->name('init-filters');
+            Route::get('/operators', 'getOperatorsByWarehouse')->name('operators');
+            Route::post('/process-rows', 'processRows')->name('process-rows')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/validasi-appkso', 'validateAppkso')->name('validasi-appkso')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/cek-doc', 'checkDoc')->name('cek-doc')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::post('/scan-history', 'getScanHistory')->name('scan-history')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+            Route::get('/get-so-names-cntso', 'getSoNamesCntso')->name('get-so-names-cntso');
+            Route::match(['get', 'post'], '/print', 'printTagStock')->name('print');
+            Route::post('/test-validasi', 'testValidasi')->name('test-validasi');
+            Route::post('/validasi-appkso', 'validateAppkso')->name('validasi-appkso');
+        });
 });
 
-
+// =========================================================================
+// DASHBOARD APPKSO GLOBAL (NEW - DARI CNTSO & SNAPSHOT BPW)
+// =========================================================================
+Route::prefix('dashboard-so')
+    ->name('dashboard_so_auto.')
+    ->controller(\App\Http\Controllers\appkso\DashboardSoAutoController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/get-comparison', 'getComparisonData')->name('comparison');
+        Route::get('/get-detail-pattern', 'getDetailPattern')->name('detail-pattern');
+        Route::get('/get-detail-ppm', 'getDetailPPM')->name('detail-ppm');
+        Route::get('/get-unscanned-items', 'getUnscannedItems')->name('unscanned-items');
+        Route::get('/get-scan-history', 'getScanHistory')->name('scan-history');
+        Route::get('/get-detail-price-pattern', 'getDetailPricePattern')->name('detail-price-pattern');
+    });
 
 // =========================================================================
 // 5. MODUL SYNC STOCK BARCODE WIRELESS
@@ -202,8 +280,107 @@ Route::prefix('data_master')->name('data_master.')->group(function () {
 // =========================================================================
 Route::prefix('progress')
     ->name('progress.')
-    ->controller(ProgressController::class)
+    ->controller(OracleVsFisikProgressSOController::class)
     ->group(function () {
-
         Route::get('/', 'index')->name('index');
+        Route::get('/detail', 'getDetail')->name('detail');
     });
+
+// =========================================================================
+// AUTO PROGRESS STOCK OPNAME (sumber data: fginvc.cntso)
+// =========================================================================
+Route::prefix('auto-progress')
+    ->name('auto_progress.')
+    ->controller(\App\Http\Controllers\appkso\AutoProgressSOController::class)
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/detail', 'getDetail')->name('detail');
+    });
+// =========================================================================
+// SNAPSHOT BPW
+// =========================================================================
+Route::prefix('appkso/snapshot')->name('appkso.snapshot.')->group(function () {
+    Route::get('/',             [SnapShotController::class, 'index'])->name('index');        // <-- halaman view baru
+    Route::get('/get-so-names', [SnapShotController::class, 'getSoNames'])->name('getSoNames');
+    Route::get('/data',         [SnapShotController::class, 'getData'])->name('getData');
+    Route::post('/import',      [SnapShotController::class, 'import'])->name('import')->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+});
+
+
+Route::get('/appkso/generate-xlsm', [Appkso::class, 'generateUploadOracleXlsm'])->name('appkso.generate-xlsm');
+Route::get('/appkso/open-folder', [Appkso::class, 'openSharedFolder'])->name('appkso.open-folder');
+Route::post('/save-session-date', [Appkso::class, 'saveSessionDate'])
+    ->name('save.session.date');
+
+// Tambahkan ini (baru):
+Route::post('/save-session-date-posisi', [Appkso::class, 'saveSessionDatePosisi'])
+    ->name('save.session.date.posisi');
+
+Route::controller(SoKarantinaController::class)
+    ->prefix('so-karantina')
+    ->name('so_karantina.')
+    ->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/data', 'getData')->name('data');
+        Route::get('/scan-detail', 'getScanDetail')->name('scan_detail');
+    });
+
+//  grup so_karantina
+Route::controller(UploadBstbController::class)
+    ->prefix('so-karantina/upload-bstb')
+    ->name('so_karantina.upload_bstb.')
+    ->group(function () {
+        Route::post('/', 'upload')->name('upload');
+    });
+
+// =========================================================================
+// MODUL SO KARANTINA (HANDHELD / SCANNER MENU)
+// =========================================================================
+Route::prefix('so-karantina')->group(function () {
+
+    Route::get('/pilih-menu', function () {
+        // Ganti 'dashboard.index' ini ke rute Dashboard utama lu kalau beda
+        return redirect()->route('dashboard.index');
+    })->name('pilihmenu.index');
+
+    // Menu Utama Handheld
+    Route::get('/menu', function () {
+        return view('so_karantina.menu');
+    })->name('so_karantina.menu');
+
+    // 1. Spesial Entry
+    Route::controller(SpesialEntriKarantinaController::class)
+        ->prefix('spesial')
+        ->name('karantina.spesial.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/set-team', 'setTeam')->name('setTeam');
+            Route::post('/store', 'store')->name('store');
+            Route::post('/reset-team', 'resetTeam')->name('resetTeam');
+        });
+
+    // 2. Revisi KSO
+    Route::controller(RevisiKsoKarantinaController::class)
+        ->prefix('revisi')
+        ->name('karantina.revisi.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/set-filter', 'setFilter')->name('setFilter');
+            Route::post('/update', 'update')->name('update');
+            Route::post('/reset-team', 'resetTeam')->name('resetTeam');
+        });
+
+    // 3. Validasi KSO
+    Route::controller(ValidasiKsoKarantinaController::class)
+        ->prefix('validasi')
+        ->name('karantina.validasi.')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/set-team', 'setTeam')->name('setTeam');
+            Route::post('/set-nodoc', 'setNoDoc')->name('setNoDoc');
+            Route::post('/reset-team', 'resetTeam')->name('resetTeam');
+            Route::post('/reset-nodoc', 'resetNoDoc')->name('resetNoDoc');
+            Route::post('/approve/{id}', 'approve')->name('approve');
+            Route::post('/reject/{id}', 'reject')->name('reject');
+        });
+});
