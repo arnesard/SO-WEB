@@ -373,7 +373,7 @@
                     </h5>
                     <div class="d-flex align-items-center gap-2">
                         <div class="btn-group me-2">
-                            {{-- <button id="btn-master_size" onclick="switchFisikContent('master_size')"
+                            <button id="btn-master_size" onclick="switchFisikContent('master_size')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="ruler" class="me-1" style="width: 12px; height: 12px;"></i> MASTER SIZE
@@ -382,13 +382,13 @@
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="user" class="me-1" style="width: 12px; height: 12px;"></i> MASTER PIC
-                            </button> --}}
-                            {{-- <button id="btn-barcode_monitoring" onclick="switchFisikContent('barcode_monitoring')"
+                            </button>
+                            <button id="btn-barcode_monitoring" onclick="switchFisikContent('barcode_monitoring')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="barcode" class="me-1" style="width: 12px; height: 12px;"></i> BARCODE
                                 MonStock
-                            </button> --}}
+                            </button>
                             <button id="btn-tagstock" onclick="switchFisikContent('tagstock')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
@@ -400,22 +400,22 @@
                                 <i data-lucide="file" class="me-1" style="width: 12px; height: 12px;"></i>
                                 TAG STOCK NON BARCODE
                             </button>
-                            {{-- <button id="btn-appkso" onclick="switchFisikContent('appkso')"
+                            <button id="btn-appkso" onclick="switchFisikContent('appkso')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> APPKSO
-                            </button> --}}
-                            {{-- <button id="btn-oracle_snapshot" onclick="switchFisikContent('oracle_snapshot')"
+                            </button>
+                            <button id="btn-oracle_snapshot" onclick="switchFisikContent('oracle_snapshot')"
                                 class="btn btn-xs btn-outline-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="camera" class="me-1" style="width: 12px; height: 12px;"></i> SNAPSHOT
-                            </button> --}}
+                            </button>
                             {{-- <a href="{{ route('appkso.index') }}"
                                 class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"
                                 style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
                                 <i data-lucide="scan" class="me-1" style="width: 12px; height: 12px;"></i> DB AUTO BPW
                             </a> --}}
-                            {{-- <button id="btn-default" onclick="switchFisikContent('default')"
+                            <button id="btn-default" onclick="switchFisikContent('default')"
                                 class="btn btn-xs btn-light btn-menu-fisik fw-bold shadow-sm"
                                 style="font-size: 9px; border-width: 1.5px;">
                                 <i data-lucide="layout" class="me-1" style="width: 12px; height: 12px;"></i> DASHBOARD
@@ -425,7 +425,7 @@
                                 style="font-size: 9px; border-width: 1.5px; text-decoration: none;">
                                 <i data-lucide="activity" class="me-1" style="width: 12px; height: 12px;"></i>
                                 PROGRESS
-                            </a> --}}
+                            </a>
                         </div>
                         <button onclick="refreshCurrentFisikPage()"
                             class="btn btn-xs btn-outline-light fw-bold shadow-sm d-flex align-items-center"

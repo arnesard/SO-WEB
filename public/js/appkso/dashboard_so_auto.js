@@ -14,6 +14,13 @@ window.loadFisikDashboardData = function (so_name) {
         document.getElementById("resumeChart").innerHTML =
             '<div class="d-flex h-100 w-100 align-items-center justify-content-center"><div class="spinner-border text-info"></div></div>';
     }
+
+    // --- 1. TAMBAHKAN LOADING UNTUK CHART TIRE & TUBE ---
+    if (document.getElementById("tireTubeChart")) {
+        document.getElementById("tireTubeChart").innerHTML =
+            '<div class="d-flex h-100 w-100 align-items-center justify-content-center"><div class="spinner-border text-warning"></div></div>';
+    }
+
     [
         "sum-unscanned",
         "sum-minus",
@@ -69,6 +76,9 @@ window.loadFisikDashboardData = function (so_name) {
 
             document.getElementById("metricCardsArea").classList.add("show");
             document.getElementById("varianceChart").innerHTML = ""; // Clear loading
+
+if (document.getElementById("resumeChart")) document.getElementById("resumeChart").innerHTML = "";
+            if (document.getElementById("tireTubeChart")) document.getElementById("tireTubeChart").innerHTML = "";
 
             if ($("#oe-variance-pcs").length)
                 $("#oe-variance-pcs").text(
@@ -216,6 +226,7 @@ window.loadFisikDashboardData = function (so_name) {
             window.renderVarianceChart(res.data);
             window.renderResumeChart(res.summary.resume_data);
             window.renderSummaryTables(res.data);
+            window.renderTireTubeChart(res.summary.resume_data_tire_tube || res.summary.resume_data);
 
             setTimeout(function () {
                 if (typeof mySpeedometerChart !== "undefined")
@@ -226,6 +237,7 @@ window.loadFisikDashboardData = function (so_name) {
                     myVarianceChart.resize();
                 if (typeof myResumeChart !== "undefined")
                     myResumeChart.resize();
+                if (typeof myTireTubeChart !== "undefined") myTireTubeChart.resize();
             }, 300);
         })
         .fail(function () {
@@ -466,9 +478,11 @@ window.renderVarianceChart = function (data) {
             textStyle: { fontSize: 14, color: "#334155", fontWeight: "900" },
         },
         tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+        // Ubah bagian grid & label di renderVarianceChart:
+
         grid: {
             left: "2%",
-            right: "5%",
+            right: "12%", // <-- naikin dari 5% ke 12%
             bottom: "5%",
             top: "15%",
             containLabel: true,
@@ -478,9 +492,9 @@ window.renderVarianceChart = function (data) {
             type: "category",
             data: categories,
             axisLabel: {
-                fontSize: 11,
+                fontSize: 10, // <-- kecilin dari 11 ke 10
                 fontWeight: "bold",
-                width: 250,
+                width: 220, // <-- kecilin dari 250 ke 220
                 overflow: "break",
             },
         },
@@ -504,6 +518,7 @@ window.renderVarianceChart = function (data) {
                     formatter: (p) =>
                         (p.value > 0 ? "+" : "") + p.value.toLocaleString(),
                     fontWeight: "bold",
+                    fontSize: 10, // <-- kecilin dari default ke 10
                 },
             },
         ],
@@ -1347,7 +1362,7 @@ window.renderSummaryTables = function (data) {
             <td class="fw-bold text-dark text-start">${item.pattern}</td>
             <td class="text-end fw-semibold">${formatRibuan(item.qty_appkso)}</td>
             <td class="text-end fw-semibold">${formatRibuan(item.qty_oracle)}</td>
-            <td class="text-end fw-black ${item.variance < 0 ? "text-danger" : item.variance > 0 ? "text-success" : "text-muted"}">${item.variance > 0 ? "+" : ""}${formatRibuan(item.variance)}</td>
+            <td class="text-end fw-black ${item.variance < 0 ? "text-danger" : item.variance > 0 ? "text-success" : "text-muted"}">${item.variance > 0 ? "+" : item.variance < 0 ? "-" : ""}${formatRibuan(item.variance)}</td>
             <td class="text-center fw-bold text-danger">${item.sku_minus > 0 ? item.sku_minus : "-"}</td>
             <td class="text-center fw-bold text-success">${item.sku_plus > 0 ? item.sku_plus : "-"}</td>
         </tr>`;
@@ -1373,7 +1388,7 @@ window.renderSummaryTables = function (data) {
                 : t.variance > 0
                   ? "text-success"
                   : "text-muted";
-        let varSign = t.variance > 0 ? "+" : "";
+        let varSign = t.variance > 0 ? "+" : t.variance < 0 ? "-" : "";
         return `
             <span class="text-primary">Counted: ${formatRibuan(t.counted)}</span> |
             <span class="text-secondary">On-hand: ${formatRibuan(t.onhand)}</span> |
@@ -1569,3 +1584,168 @@ function toggleAllSimilar() {
         row.style.display = isHidden ? "table-row" : "none";
     });
 }
+
+window.renderTireTubeChart = function (resumeData) {
+    let chartDom = document.getElementById("tireTubeChart");
+    if (!chartDom) return;
+
+    // 1. PAstikan bersihkan DOM dari elemen loading/spinner sebelum init ECharts
+    chartDom.innerHTML = "";
+
+    // Bersihkan instance lama jika ada
+    let existingChart = echarts.getInstanceByDom(chartDom);
+    if (existingChart) existingChart.dispose();
+
+    window.myTireTubeChart = echarts.init(chartDom);
+
+    // 2. Perbaikan Logika Aggregate Data TIRE dan TUBE
+    let tireCounted = 0, tireOnHand = 0, tireVariance = 0;
+    let tubeCounted = 0, tubeOnHand = 0, tubeVariance = 0;
+
+    if (resumeData) {
+        // Jika backend mengirim data yang spesifik bernama "TIRE" & "TUBE"
+        if (resumeData["TIRE"]) {
+            tireCounted += resumeData["TIRE"].counted || 0;
+            tireOnHand += resumeData["TIRE"].on_hand || 0;
+            tireVariance += resumeData["TIRE"].variance || 0;
+        }
+        if (resumeData["TUBE"]) {
+            tubeCounted += resumeData["TUBE"].counted || 0;
+            tubeOnHand += resumeData["TUBE"].on_hand || 0;
+            tubeVariance += resumeData["TUBE"].variance || 0;
+        }
+
+        // Jika data jatuh ke fallback yang terpisah OE dan OK, kita jumlahkan
+        ["OE", "OK"].forEach(grade => {
+            if (resumeData[`${grade} TIRE`]) {
+                tireCounted += resumeData[`${grade} TIRE`].counted || 0;
+                tireOnHand += resumeData[`${grade} TIRE`].on_hand || 0;
+                tireVariance += resumeData[`${grade} TIRE`].variance || 0;
+            }
+            if (resumeData[`${grade} TUBE`]) {
+                tubeCounted += resumeData[`${grade} TUBE`].counted || 0;
+                tubeOnHand += resumeData[`${grade} TUBE`].on_hand || 0;
+                tubeVariance += resumeData[`${grade} TUBE`].variance || 0;
+            }
+        });
+    }
+
+    let categories = ["TIRE", "TUBE"];
+    let countedData = [tireCounted, tubeCounted];
+    let onhandData = [tireOnHand, tubeOnHand];
+    let varianceData = [tireVariance, tubeVariance];
+
+    const option = {
+        grid: {
+            top: "12%",
+            bottom: "10%",
+            left: "-65%", // Diperlebar sedikit agar nominal digit besar tidak terpotong
+            right: "5%",
+            containLabel: true,
+        },
+        tooltip: {
+            trigger: "axis",
+            axisPointer: { type: "shadow" },
+        },
+        xAxis: {
+            type: "category",
+            data: categories,
+            position: "top",
+            splitLine: {
+                show: true,
+                lineStyle: {
+                    color: "#e2e8f0", 
+                    width: 1,
+                    type: "solid",
+                },
+            },
+            axisLabel: {
+                fontSize: 11,
+                fontWeight: "800",
+                color: "#334155",
+                interval: 0,
+                margin: 10,
+            },
+            axisLine: { show: false },
+            axisTick: { show: false },
+            boundaryGap: true,
+        },
+        yAxis: {
+            type: "value",
+            show: false,
+            scale: true,
+        },
+        series: [
+            {
+                name: "Counted",
+                type: "bar",
+                barWidth: "40%", 
+                barGap: "10%",
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: "#10b981" },
+                        { offset: 1, color: "#059669" },
+                    ]),
+                    borderRadius: [4, 4, 0, 0],
+                },
+                data: countedData,
+                label: {
+                    show: true,
+                    position: "inside",
+                    rotate: 90,
+                    formatter: (p) => typeof formatRibuan === "function" ? formatRibuan(p.value) : p.value,
+                    fontSize: 10,
+                    color: "#000000", 
+                    align: "start",
+                    verticalAlign: "middle",
+                },
+            },
+            {
+                name: "On-hand",
+                type: "bar",
+                barWidth: "40%",
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: "#3b82f6" },
+                        { offset: 1, color: "#2563eb" },
+                    ]),
+                    borderRadius: [4, 4, 0, 0],
+                },
+                data: onhandData,
+                label: {
+                    show: true,
+                    position: "inside",
+                    rotate: 90,
+                    formatter: (p) => typeof formatRibuan === "function" ? formatRibuan(p.value) : p.value,
+                    fontSize: 10,
+                    color: "#000000",
+                    align: "start",
+                    verticalAlign: "middle",
+                },
+            },
+            {
+                name: "Variance",
+                type: "line",
+                symbol: "circle",
+                symbolSize: 8,
+                itemStyle: { color: "#f59e0b" },
+                lineStyle: { width: 2, type: "dashed" },
+                data: varianceData,
+                label: {
+                    show: true,
+                    position: "bottom",
+                    distance: 10,
+                    formatter: (p) => {
+                        let val = typeof formatRibuan === "function" ? formatRibuan(p.value) : p.value;
+                        return (p.value > 0 ? "+" : "") + val;
+                    },
+                    fontSize: 10,
+                    fontWeight: "900",
+                    color: "#92400e",
+                },
+            },
+        ],
+    };
+
+    window.myTireTubeChart.setOption(option, true);
+};

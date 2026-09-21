@@ -323,6 +323,9 @@ Route::controller(SoKarantinaController::class)
         Route::get('/', 'index')->name('index');
         Route::get('/data', 'getData')->name('data');
         Route::get('/scan-detail', 'getScanDetail')->name('scan_detail');
+        Route::get('/operators', 'getOperatorList')->name('operators');
+        Route::get('/rekap-by-operator', 'getRekapByOperator')->name('rekap_by_operator');
+        Route::get('/auditors', 'getAuditorList')->name('auditors'); // ← TAMBAH INI
     });
 
 //  grup so_karantina

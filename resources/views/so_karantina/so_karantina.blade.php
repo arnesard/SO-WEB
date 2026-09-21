@@ -60,6 +60,10 @@
                     <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" onclick="loadData()">
                         <i data-lucide="refresh-cw" size="16"></i> Refresh
                     </button>
+                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1"
+                        onclick="openPrintRekapModal()">
+                        <i data-lucide="printer" size="16"></i> Excel  Rekap SO karantina
+                    </button>
                     <button type="button" class="btn btn-sm btn-warning d-flex align-items-center gap-1"
                         data-bs-toggle="modal" data-bs-target="#modalUploadBstb">
                         <i data-lucide="upload" size="16"></i> Upload BSTB Barcode
@@ -450,6 +454,65 @@
                 </div>
             </div>
         </div>
+<!-- Modal Print Rekap -->
+<div class="modal fade" id="modalPrintRekap" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content border-0 shadow" style="border-radius: 14px; overflow: hidden;">
+            <div class="modal-header py-2 px-3" style="background-color: #dc3545; color: white;">
+                <h6 class="modal-title mb-0 fw-bold d-flex align-items-center gap-2" style="font-size: 12px;">
+                    <i data-lucide="file-spreadsheet" style="width: 14px; height: 14px;"></i>
+                    Export Rekap SO Karantina
+                </h6>
+                <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3">
+
+                {{-- Info ringkas --}}
+                <div id="modal-rekap-info"
+                    class="p-2 rounded mb-3 text-center"
+                    style="background: rgba(220,53,69,0.07); border: 1px solid rgba(220,53,69,0.2); font-size: 11px;">
+                    <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                    <span class="ms-2 text-muted">Memuat data operator...</span>
+                </div>
+
+                <p class="text-muted mb-3" style="font-size: 11px;">
+                    Pilih jenis export rekap yang akan di-download:
+                </p>
+
+                <div class="d-grid gap-2">
+                    {{-- Internal: dengan TOTAL --}}
+                    <button type="button" id="btn-export-internal"
+                        class="btn btn-sm fw-bold text-white disabled"
+                        style="background-color: #198754; font-size: 11px; border-radius: 8px;">
+                        <i data-lucide="file-spreadsheet" style="width: 13px; height: 13px;"></i>
+                        Export Internal
+                        <small class="d-block fw-normal opacity-75" style="font-size: 9px;">
+                            Kolom TOTAL terisi angka
+                        </small>
+                    </button>
+
+                    {{-- External: TOTAL kosong --}}
+                    <button type="button" id="btn-export-external"
+                        class="btn btn-sm fw-bold text-white disabled"
+                        style="background-color: #0d6efd; font-size: 11px; border-radius: 8px;">
+                        <i data-lucide="file-spreadsheet" style="width: 13px; height: 13px;"></i>
+                        Export External
+                        <small class="d-block fw-normal opacity-75" style="font-size: 9px;">
+                            Kolom TOTAL dikosongkan
+                        </small>
+                    </button>
+                </div>
+
+            </div>
+            <div class="modal-footer py-2 px-3" style="background: #f8f9fa;">
+                <button type="button" class="btn btn-sm btn-light border fw-bold"
+                    data-bs-dismiss="modal" style="font-size: 11px;">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     @endsection
 
     @push('scripts')

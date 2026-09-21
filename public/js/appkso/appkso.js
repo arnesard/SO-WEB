@@ -605,6 +605,188 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             }
         });
+
+    // =============================================
+    // PRINT RESUME PIC STOCK
+    // =============================================
+    const btnPrintResumePic = document.getElementById("btn-print-resume-pic");
+    if (btnPrintResumePic) {
+        btnPrintResumePic.addEventListener("click", function () {
+            // 1. Ambil SO aktif
+            const soName = document.getElementById("so_select")?.value || "-";
+
+            // 2. Ambil semua baris dari tabel resume PIC
+            const rows = document.querySelectorAll(
+                "#mainTable tbody .clickable-row",
+            );
+            if (!rows || rows.length === 0) {
+                alert("Tidak ada data Resume PIC untuk diprint.");
+                return;
+            }
+
+            // 3. Build rows HTML
+            let rowsHtml = "";
+            let totalKso = 0,
+                totalSku = 0,
+                totalQty = 0;
+
+            rows.forEach((row, idx) => {
+                const cells = row.querySelectorAll("td");
+                const no = idx + 1;
+                const namaOpr = cells[1]?.innerText?.trim() || "-";
+                const kso = cells[2]?.innerText?.trim() || "0";
+                const sku = cells[3]?.innerText?.trim() || "0";
+                const qty = cells[4]?.innerText?.trim() || "0";
+
+                // Akumulasi total — strip non-numeric
+                totalKso += parseInt(kso.replace(/\D/g, "")) || 0;
+                totalSku += parseInt(sku.replace(/\D/g, "")) || 0;
+                totalQty += parseInt(qty.replace(/\D/g, "")) || 0;
+
+                rowsHtml += `
+                <tr>
+                    <td style="text-align:center; border:1px solid #ddd; padding:5px 8px;">${no}</td>
+                    <td style="text-align:left;  border:1px solid #ddd; padding:5px 8px;">${namaOpr}</td>
+                    <td style="text-align:center; border:1px solid #ddd; padding:5px 8px;">${kso}</td>
+                    <td style="text-align:center; border:1px solid #ddd; padding:5px 8px;">${sku}</td>
+                    <td style="text-align:right;  border:1px solid #ddd; padding:5px 8px; padding-right:12px;">${qty}</td>
+                </tr>`;
+            });
+
+            // 4. Format total
+            const fmt = (n) => n.toLocaleString("id-ID");
+
+            // 5. Tanggal print
+            const now = new Date();
+            const tglPrint = now.toLocaleDateString("id-ID", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+            });
+
+            // 6. Build full HTML preview
+            const previewHtml = `
+            <html>
+            <head>
+                <title>Resume PIC Stock - ${soName}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 15mm 12mm; }
+                    body {
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        margin: 0; padding: 0;
+                        color: #000;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 12px;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 8px;
+                    }
+                    .header h2 {
+                        margin: 0 0 4px 0;
+                        font-size: 15px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                    }
+                    .header p {
+                        margin: 2px 0;
+                        font-size: 10px;
+                        color: #444;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 8px;
+                    }
+                    thead th {
+                        background-color: #132541;
+                        color: #fff;
+                        text-align: center;
+                        padding: 7px 8px;
+                        font-size: 10px;
+                        border: 1px solid #132541;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    }
+                    tbody tr:nth-child(even) {
+                        background-color: #f5f5f5;
+                    }
+                    tfoot td {
+                        background-color: #1e293b;
+                        color: #fff;
+                        font-weight: bold;
+                        font-size: 10px;
+                        padding: 6px 8px;
+                        border: 1px solid #1e293b;
+                    }
+                    tfoot td:last-child {
+                        text-align: right;
+                        padding-right: 12px;
+                    }
+                    .print-meta {
+                        margin-top: 16px;
+                        font-size: 9px;
+                        color: #666;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>Resume PIC Stock Opname</h2>
+                    <p>SO Aktif : <strong>${soName}</strong></p>
+                    <p>Tanggal Print : ${tglPrint}</p>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:5%;">NO</th>
+                            <th style="text-align:left;">NAMA / OPERATOR</th>
+                            <th style="width:18%;">TOTAL KSO</th>
+                            <th style="width:18%;">TOTAL SKU</th>
+                            <th style="width:20%; text-align:right; padding-right:12px;">TOTAL QTY</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2" style="text-align:center;">
+                                TOTAL OPERATOR : ${rows.length}
+                            </td>
+                            <td style="text-align:center;">${fmt(totalKso)} KSO</td>
+                            <td style="text-align:center;">${fmt(totalSku)} SKU</td>
+                            <td style="text-align:right; padding-right:12px;">${fmt(totalQty)} PCS</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="print-meta">
+                    <span>APPKSO System — PT Gajah Tunggal Tbk</span>
+                    <span>Dicetak: ${tglPrint}</span>
+                </div>
+            </body>
+            </html>
+        `;
+
+            // 7. Buka print preview
+            const preview = window.open("", "_blank", "width=900,height=700");
+            preview.document.write(previewHtml);
+            preview.document.close();
+
+            preview.document.fonts.ready.then(() => {
+                setTimeout(() => {
+                    preview.focus();
+                    preview.print();
+                }, 150);
+            });
+        });
+    }
 });
 
 // =============================================

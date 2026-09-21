@@ -102,57 +102,6 @@
     @stack('scripts')
     <script>
         lucide.createIcons();
-
-        document.getElementById('btn-auto-so').addEventListener('click', function(e) {
-            e.preventDefault(); // Mencegah link langsung kebuka
-
-            // Ambil URL tujuan dari atribut href
-            const targetUrl = this.getAttribute('href');
-
-            // Tentukan password yang dimau
-            const correctPassword = "naura";
-
-            Swal.fire({
-                title: 'Akses Dibatasi',
-                text: 'Masukkan password untuk membuka menu Auto SO BPW',
-                input: 'text', // Kita tipu browser pakai tipe text
-                inputPlaceholder: 'Ketik password di sini...',
-                inputAttributes: {
-                    // Trik CSS untuk menyensor teks yang diketik biar jadi titik-titik
-                    style: '-webkit-text-security: disc;'
-                },
-                type: 'warning', // <-- UBAH 'icon' JADI 'type'
-                showCancelButton: true,
-                confirmButtonColor: '#0d6efd',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Masuk',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                // Cek apakah user menekan tombol 'Masuk' (result memiliki value)
-                if ('value' in result) {
-                    // Cek apakah password cocok
-                    if (result.value === correctPassword) {
-                        // JIKA BENAR: Munculkan notifikasi sukses
-                        Swal.fire({
-                            type: 'success', // <-- UBAH 'icon' JADI 'type'
-                            title: 'Akses Diberikan!',
-                            text: 'Mengalihkan ke halaman...',
-                            timer: 1500, // Tunggu 1.5 detik
-                            showConfirmButton: false
-                        }).then(() => {
-                            window.location.href = targetUrl; // Eksekusi pindah halaman
-                        });
-                    } else {
-                        // JIKA SALAH: Munculkan error
-                        Swal.fire({
-                            type: 'error', // <-- UBAH 'icon' JADI 'type'
-                            title: 'Akses Ditolak!',
-                            text: 'Password yang Anda masukkan salah.'
-                        });
-                    }
-                }
-            });
-        });
     </script>
 </body>
 

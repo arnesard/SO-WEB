@@ -80,7 +80,7 @@
                             <i data-lucide="printer" class="me-1" style="width: 14px; height: 14px;"></i> Rekap
                         </button>
 
-                        <button type="button" id="btn-validasi-tag" onclick="testKlik()"
+                        <button type="button" id="btn-validasi-tag"
                             class="btn btn-sm btn-warning fw-bold text-uppercase px-3 shadow-sm d-none d-flex align-items-center text-dark"
                             data-bs-toggle="tooltip" data-bs-placement="top"
                             title="Membandingkan Data Monitoring Stock Barcode dengan Hasil Scan (APPKSO)">
@@ -230,7 +230,7 @@
     </div>
 
     @push('scripts')
-        <script>
+        {{-- <script>
             function testKlik() {
                 alert("Tombol diklik! Kalo alert ini muncul, berarti kodingan lu sekarang udah bisa nerima klik.");
 
@@ -245,7 +245,7 @@
                 // Langsung panggil executeValidasiData dengan nilai dummy dulu buat ngetes
                 executeValidasiData(wh, opId, docStart, docEnd, "SO INTERNAL All Size - 24/05/2026");
             }
-        </script>
+        </script> --}}
         <script>
             // Debugging buat mastiin JS ke-load
             console.log("Tag Stock JS Ter-load!");

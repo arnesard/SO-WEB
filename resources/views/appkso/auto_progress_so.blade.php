@@ -287,41 +287,73 @@
                                             </div>
                                         </div>
 
-                                        <div class="text-center mt-0 mb-0">
-                                            <i data-lucide="{{ $isSiluman ? 'alert-triangle' : 'user' }}"
-                                                style="width: 14px; height: 14px; margin-bottom: 2px;"></i>
-                                            <span class="info-label text-white d-block mb-1">AUDITOR</span>
+                                       {{-- NAMA AUDITOR (tanpa icon & label "AUDITOR") --}}
+<div class="text-center mt-0 mb-0">
+    @php
+        $namaParts = explode(' (', $row->auditor);
+        $namaUtama = $nameParts[0] ?? $row->auditor;
+        $namaKode  = isset($namaParts[1]) ? '(' . $namaParts[1] : '';
+        $progress  = $row->total_data > 0
+            ? round(($row->verified_data / $row->total_data) * 100)
+            : 0;
+    @endphp
 
-                                            <span
-                                                class="info-value {{ $isSiluman ? 'text-danger' : 'text-warning' }} d-flex flex-column justify-content-center align-items-center"
-                                                style="{{ $isSiluman ? 'font-size:9px;' : 'font-size: 13px;' }} line-height: 1.2;">
-                                                <span>{{ explode(' (', $row->auditor)[0] }}</span>
-                                                <span>({{ explode(' (', $row->auditor)[1] ?? '' }}</span>
-                                            </span>
-                                        </div>
+    <span class="{{ $isSiluman ? 'text-danger' : 'text-warning' }} fw-bold d-block text-center"
+    style="font-size: 13px; line-height: 1.2;">
+    {{ $row->auditor }}
+</span>
+</div>
 
                                         <div class="d-flex flex-column gap-1 mt-auto">
-                                            <div
-                                                class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
-                                                <span class="info-label mb-0 text-start text-white">KSO :</span>
-                                                <div class="text-end">
-                                                    <span
-                                                        class="text-success info-value">{{ number_format($row->verified_data) }}</span>
-                                                    <span class="text-secondary text-white" style="font-size: 11px;">/
-                                                        {{ number_format($row->total_data) }}</span>
-                                                </div>
-                                            </div>
-                                            <div
-                                                class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
-                                                <span class="info-label mb-0 text-start text-white">PCS :</span>
-                                                <div class="text-end">
-                                                    <span
-                                                        class="text-success info-value">{{ number_format($row->verified_qty) }}</span>
-                                                    <span class="text-secondary text-white" style="font-size: 11px;">/
-                                                        {{ number_format($row->total_qty) }}</span>
-                                                </div>
-                                            </div>
-                                        </div>
+    {{-- DURASI + % --}}
+    @php
+        $progress = $row->total_data > 0
+            ? round(($row->verified_data / $row->total_data) * 100)
+            : 0;
+    @endphp
+    <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+      @php
+           $durColor = '#8c98a4'; // default abu (belum scan)
+if (!is_null($row->scan_duration)) {
+    if ($row->scan_duration < 30) $durColor = '#00f6ff';      // biru
+    elseif ($row->scan_duration < 60) $durColor = '#00ff99';  // hijau
+    elseif ($row->scan_duration < 90) $durColor = '#ffc107';  // kuning
+    else $durColor = '#ff4d4d';                                // merah
+}
+        @endphp
+        <span style="font-size:9px; color: {{ $durColor }};">
+            <i data-lucide="clock" style="width:9px;height:9px;"></i>
+            @if(!is_null($row->scan_duration))
+                {{ $row->scan_duration >= 60
+                    ? floor($row->scan_duration/60).'j '.($row->scan_duration%60).'m'
+                    : $row->scan_duration.' Menit' }}
+            @else
+                -
+            @endif
+        </span>
+        <span class="fw-bold" style="font-size:11px; color: {{ $progress >= 100 ? '#00ff99' : ($progress > 0 ? '#00f6ff' : '#8c98a4') }};">
+            {{ $progress }}%
+        </span>
+    </div>
+
+    {{-- KSO --}}
+    <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+        <span class="info-label mb-0 text-start text-white">KSO :</span>
+        <div class="text-end">
+            <span class="text-success info-value">{{ number_format($row->verified_data) }}</span>
+            <span class="text-secondary text-white" style="font-size: 11px;">/ {{ number_format($row->total_data) }}</span>
+        </div>
+    </div>
+
+    {{-- PCS --}}
+    <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+        <span class="info-label mb-0 text-start text-white">PCS :</span>
+        <div class="text-end">
+            <span class="text-success info-value">{{ number_format($row->verified_qty) }}</span>
+            <span class="text-secondary text-white" style="font-size: 11px;">/ {{ number_format($row->total_qty) }}</span>
+        </div>
+    </div>
+</div>
 
                                     </div>
                                 </div>
@@ -386,83 +418,95 @@
                     </div>
                 </div>
 
-                <div class="glass p-3 text-center">
-                    <h6 class="text-info text-center border-bottom border-secondary pb-2 mb-3"
-                        style="font-size: 18px;">TOTAL
-                        PROGRESS</h6>
-                    <h1 class="title-glow display-5 mb-2">{{ $globalProgress }}%</h1>
-                    <div class="progress-bg w-100 mx-auto mt-0 mb-0" style="max-width: 85%; height: 8px;">
-                        <div class="progress-bar-glow" style="width: {{ min(100, $globalProgress) }}%;"></div>
-                    </div>
-                    <div class="d-flex flex-column gap-0 mt-2 mb-0">
-                        <div class="box-stat p-0 d-flex justify-content-between align-items-center px-1">
-                            <span class="text-white-50 fw-bold mb-0"
-                                style="font-size: 11px; letter-spacing: 0.5px;">KSO :</span>
-                            <div>
-                                <span class="title-glow text-success fw-bold"
-                                    style="font-size: 16px;">{{ number_format($globalSummary->verified_data ?? 0) }}</span>
-                                <span class="text-white-50" style="font-size: 10px;">/
-                                    {{ number_format($globalSummary->total_data ?? 0) }}</span>
-                            </div>
-                        </div>
-                        <div class="box-stat p-0 d-flex justify-content-between align-items-center px-1">
-                            <span class="text-white-50 fw-bold mb-0"
-                                style="font-size: 11px; letter-spacing: 0.5px;">PCS :</span>
-                            <div>
-                                <span class="title-glow text-success fw-bold"
-                                    style="font-size: 16px;">{{ number_format($globalSummary->verified_qty ?? 0) }}</span>
-                                <span class="text-white-50" style="font-size: 10px;">/
-                                    {{ number_format($globalSummary->total_qty ?? 0) }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+             <div class="glass p-3">
+   <h6 class="text-info text-center border-bottom border-secondary pb-2 mb-2"
+    style="font-size: 18px;">TOTAL PROGRESS</h6>
 
-                <div class="glass p-3 flex-grow-1">
-                    <h6 class="text-info text-center border-bottom border-secondary pb-2 mb-1"
-                        style="font-size: 18px;">Breakdown
-                        Per Gedung</h6>
-                    @forelse($progressPerGedung as $gedung)
-                        <div class="glass p-2 mb-1"
-                            style="background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.03);">
-                            <div class="d-flex justify-content-between align-items-end mb-auto">
-                                <span class="fw-bold text-light"
-                                    style="font-size: 16px;">{{ $gedung->lokasi }}</span>
-                                <small class="text-info fw-bold"
-                                    style="font-size: 15px;">{{ $gedung->progress }}%</small>
-                            </div>
-                            <div class="progress-bg w-100 mb-1"
-                                style="height: 5px; background: rgba(255,255,255,0.05);">
-                                <div class="progress-bar-glow" style="width: {{ min(100, $gedung->progress) }}%;">
-                                </div>
-                            </div>
-                            <div class="d-flex justify-content-between mb-auto" style="font-size: 13px;">
-                                <span class="text-white-50">KSO :</span>
-                                <span>
-                                    <span
-                                        class="title-glow text-success fw-bold">{{ number_format($gedung->verified_data) }}</span>
-                                    /
-                                    <span class="text-white-50">{{ number_format($gedung->total_data) }}</span>
-                                </span>
-                            </div>
-                            <div class="d-flex justify-content-between" style="font-size: 13px;">
-                                <span class="text-white-50">PCS :</span>
-                                <span>
-                                    <span
-                                        class="title-glow text-success fw-bold">{{ number_format($gedung->verified_qty) }}</span>
-                                    /
-                                    <span class="text-white-50">{{ number_format($gedung->total_qty) }}</span>
-                                </span>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="text-center text-white-50 mt-4" style="font-size: 10px;">Belum ada data lokasi.
-                        </div>
-                    @endforelse
-                </div>
-            </div>
+<h1 class="title-glow display-5 text-center mb-0">{{ $globalProgress }}%</h1>
+
+{{-- Durasi tengah warna cyan --}}
+<div class="text-center mb-1">
+    <span class="title-glow fw-bold" style="font-size:12px;">
+        <i data-lucide="clock" style="width:10px;height:10px;"></i>
+        @if(!is_null($globalDuration))
+            {{ $globalDuration >= 60 ? floor($globalDuration/60).'j '.($globalDuration%60).'m' : $globalDuration.' Menit' }}
+        @else - @endif
+    </span>
+</div>
+
+<div class="progress-bg w-100 mx-auto mb-2" style="max-width: 85%; height: 8px;">
+    <div class="progress-bar-glow" style="width: {{ min(100, $globalProgress) }}%;"></div>
+</div>
+
+<div class="d-flex flex-column gap-1">
+    {{-- KSO --}}
+    <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+        <span class="text-white-50 fw-bold" style="font-size:11px;">KSO :</span>
+        <div>
+            <span class="text-success fw-bold" style="font-size:13px;">{{ number_format($globalSummary->verified_data ?? 0) }}</span>
+            <span class="text-white-50" style="font-size:10px;">/ {{ number_format($globalSummary->total_data ?? 0) }}</span>
         </div>
     </div>
+    {{-- PCS --}}
+    <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+        <span class="text-white-50 fw-bold" style="font-size:11px;">PCS :</span>
+        <div>
+            <span class="text-success fw-bold" style="font-size:13px;">{{ number_format($globalSummary->verified_qty ?? 0) }}</span>
+            <span class="text-white-50" style="font-size:10px;">/ {{ number_format($globalSummary->total_qty ?? 0) }}</span>
+        </div>
+    </div>
+</div>
+</div>
+
+<div class="glass p-3 flex-grow-1" style="overflow-y: auto;">
+    <h6 class="text-info text-center border-bottom border-secondary pb-2 mb-1"
+        style="font-size: 18px;">Breakdown Per Gedung</h6>
+
+    @forelse($progressPerGedung as $gedung)
+        @php $dur = $durasiPerGedung[$gedung->lokasi] ?? null; @endphp
+        <div class="glass p-2 mb-1" style="background: rgba(0,0,0,0.2); border-color: rgba(255,255,255,0.03);">
+
+            {{-- Baris 1: BPW01 (durasi) di kiri, % di kanan --}}
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold text-light" style="font-size:13px;">
+                    {{ $gedung->lokasi }}
+                    <span class="title-glow" style="font-size:10px; font-weight:normal;">
+                        <i data-lucide="clock" style="width:9px;height:9px;"></i>
+                        @if(!is_null($dur))
+                            {{ $dur >= 60 ? floor($dur/60).'j '.($dur%60).'m' : $dur.' Menit' }}
+                        @else - @endif
+                    </span>
+                </span>
+                <span class="fw-bold" style="font-size:11px; color:#00f6ff;">{{ $gedung->progress }}%</span>
+            </div>
+
+            <div class="progress-bg w-100 mb-1" style="height: 5px; background: rgba(255,255,255,0.05);">
+                <div class="progress-bar-glow" style="width: {{ min(100, $gedung->progress) }}%;"></div>
+            </div>
+
+            {{-- KSO --}}
+            <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2 mb-1">
+                <span class="text-white-50" style="font-size:10px;">KSO :</span>
+                <div>
+                    <span class="text-success fw-bold" style="font-size:11px;">{{ number_format($gedung->verified_data) }}</span>
+                    <span class="text-white-50" style="font-size:10px;">/ {{ number_format($gedung->total_data) }}</span>
+                </div>
+            </div>
+
+            {{-- PCS --}}
+            <div class="box-stat p-1 d-flex justify-content-between align-items-center px-2">
+                <span class="text-white-50" style="font-size:10px;">PCS :</span>
+                <div>
+                    <span class="text-success fw-bold" style="font-size:11px;">{{ number_format($gedung->verified_qty) }}</span>
+                    <span class="text-white-50" style="font-size:10px;">/ {{ number_format($gedung->total_qty) }}</span>
+                </div>
+            </div>
+
+        </div>
+    @empty
+        <div class="text-center text-white-50 mt-4" style="font-size: 10px;">Belum ada data lokasi.</div>
+    @endforelse
+</div>
 
     {{-- MODAL DETAIL --}}
     <div class="modal fade" id="modalDetailAuditor" tabindex="-1" aria-hidden="true">

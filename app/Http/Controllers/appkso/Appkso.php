@@ -186,6 +186,7 @@ class Appkso extends Controller
             $docFrom = $request->doc_from;
             $docTo = $request->doc_to;
             $tanggalSo = $request->tanggal_so ?? null;
+            $soName = $request->so_name ?? session('so_name');
 
             // Format tanggal: 2025-12-22 → 22 / DESEMBER / 2025
             $bulanNama = [
@@ -212,19 +213,24 @@ class Appkso extends Controller
             $db_bcm = 'bcmcfgv1';
 
             // Tarik data aktivitas sesuai filter
+$soName = $request->so_name ?? session('so_name');
+
             $rows = DB::connection('mysql_second')
-                ->table('cntso as c')
-                ->leftJoin($db_bcm . '.oprbld as o', 'c.opr', '=', 'o.oprcode')
-                ->select(
-                    'c.NoDoc as nokso',
-                    'c.ItemCode as item',
-                    'c.QtyStk as qty', // disamakan jadi 'qty' agar pas dengan blade lamamu
-                    'o.oprname'
-                )
-                ->where(DB::raw('TRIM(c.opr)'), $pic)
-                ->whereBetween('c.NoDoc', [$docFrom, $docTo])
-                ->orderBy('c.NoDoc', 'asc')
-                ->get();
+    ->table('cntso as c')
+    ->leftJoin($db_bcm . '.oprbld as o', 'c.opr', '=', 'o.oprcode')
+    ->select(
+        'c.NoDoc as nokso',
+        'c.ItemCode as item',
+        'c.QtyStk as qty',
+        'o.oprname'
+    )
+    ->where(DB::raw('TRIM(c.opr)'), $pic)
+    ->when($soName, function ($q) use ($soName) {   // ← TAMBAH INI
+        $q->where('c.so_name', $soName);
+    })
+    ->whereBetween('c.NoDoc', [$docFrom, $docTo])
+    ->orderBy('c.NoDoc', 'asc')
+    ->get();
 
             if ($rows->isEmpty()) {
                 return response()->json([
@@ -539,7 +545,9 @@ class Appkso extends Controller
             // Filter PIC baru ditaruh di sini untuk data baris tabel saja
             ->when($selectedPIC, function ($q) use ($selectedPIC) {
                 $q->where('c.opr', $selectedPIC);
-            });
+            })
+            ->orderBy('c.NoDoc', 'asc');
+
         // Kalau belum pilih PIC, jangan load data dulu
         if (!$selectedPIC) {
             return view('appkso.rekap_kso', [

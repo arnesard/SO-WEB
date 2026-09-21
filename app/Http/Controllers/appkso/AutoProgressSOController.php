@@ -101,18 +101,128 @@ class AutoProgressSOController extends Controller
             'verified_qty'  => 0,
         ];
 
+        // $soName='SO External Gudang Ban B - 21/06/26';
         // 3. Tarik Data Transaksi cntso
         $cntsoData = DB::connection('fginvc')
             ->table('cntso')
-            ->select('NoDoc', 'QtyStk', 'opr_v')
+             ->select('NoDoc', 'QtyStk', 'opr_v', 'scantime_v')
             ->when($soName, fn($q) => $q->where('so_name', $soName))
             ->get();
+
+        $cntsoDataKarantina = DB::connection('mysql')
+            ->table('so_karantina_scan')
+            ->select('NoDoc', 'QtyStk', 'opr_v')
+            ->get();
+
+        $dataGabungan = $cntsoData->merge($cntsoDataKarantina);
+
+// Tambah query ini setelah $dataGabungan = $cntsoData->merge($cntsoDataKarantina);
+$scanTimeByAuditor = [];
+
+// Dari cntso
+foreach ($cntsoData as $row) {
+    $oprV = trim((string)$row->opr_v);
+    if ($oprV === '' || empty($row->scantime_v)) continue;
+
+    $auditorName = $pennengToAuditorMap[$oprV] ?? null;
+    if (!$auditorName) continue;
+
+    if (!isset($scanTimeByAuditor[$auditorName])) {
+        $scanTimeByAuditor[$auditorName] = [];
+    }
+    $scanTimeByAuditor[$auditorName][] = $row->scantime_v;
+}
+
+// Dari so_karantina_scan
+$karantinaWithTime = DB::connection('mysql')
+    ->table('so_karantina_scan')
+    ->select('opr_v', 'scantime_v')
+    ->whereNotNull('scantime_v')
+    ->where('scantime_v', '!=', '')
+    ->get();
+
+foreach ($karantinaWithTime as $row) {
+    $oprV = trim((string)$row->opr_v);
+    if ($oprV === '' || empty($row->scantime_v)) continue;
+
+    $auditorName = $pennengToAuditorMap[$oprV] ?? null;
+    if (!$auditorName) continue;
+
+    if (!isset($scanTimeByAuditor[$auditorName])) {
+        $scanTimeByAuditor[$auditorName] = [];
+    }
+    $scanTimeByAuditor[$auditorName][] = $row->scantime_v;
+}
+
+// =========================================================
+// HITUNG DURASI GLOBAL & PER GEDUNG
+// =========================================================
+$scanTimeGlobal = [];
+$scanTimePerGedung = [];
+
+foreach ($cntsoData as $row) {
+    if (empty($row->scantime_v)) continue;
+
+    // Global
+    $scanTimeGlobal[] = $row->scantime_v;
+
+    // Per Gedung
+    $noDoc = strtoupper(str_replace(' ', '', trim($row->NoDoc)));
+    if (strlen($noDoc) < 2) continue;
+    $prefix    = substr($noDoc, 0, 2);
+    $gedungApp = $this->prefixToGedung[$prefix] ?? null;
+    if (!$gedungApp) continue;
+
+    $scanTimePerGedung[$gedungApp][] = $row->scantime_v;
+}
+
+// Juga dari karantina
+foreach ($karantinaWithTime as $row) {
+    if (empty($row->scantime_v)) continue;
+    $scanTimeGlobal[] = $row->scantime_v;
+
+    $noDoc = strtoupper(str_replace(' ', '', trim($row->NoDoc ?? '')));
+    if (strlen($noDoc) < 2) continue;
+    $prefix    = substr($noDoc, 0, 2);
+    $gedungApp = $this->prefixToGedung[$prefix] ?? null;
+    if (!$gedungApp) continue;
+    $scanTimePerGedung[$gedungApp][] = $row->scantime_v;
+}
+
+$parseTime = function($timeStr) {
+    if (empty($timeStr)) return null;
+    $dt = \DateTime::createFromFormat('d/m/Y h:i:s A', $timeStr);
+    if ($dt) return $dt;
+    $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $timeStr);
+    if ($dt) return $dt;
+    return null;
+};
+
+$calcDuration = function($times) use ($parseTime) {
+    $times = array_filter($times);
+    if (empty($times)) return null;
+    sort($times);
+    $start = $parseTime(reset($times));
+    $end   = $parseTime(end($times));
+    if (!$start || !$end) return null;
+    $diff = $start->diff($end);
+    return ($diff->h * 60) + $diff->i;
+};
+
+$globalDuration = $calcDuration($scanTimeGlobal);
+
+$durasiPerGedung = [];
+foreach ($scanTimePerGedung as $gedung => $times) {
+    $durasiPerGedung[$gedung] = $calcDuration($times);
+}
+
+        // dd($dataGabungan);
 
         $globalTotal  = ['total_data' => 0, 'verified_data' => 0, 'total_qty' => 0, 'verified_qty' => 0];
         $gedungStats  = [];
 
         // 4. Proses Iterasi & Mapping (Opsi 1: Strict Area Mapping)
-        foreach ($cntsoData as $row) {
+        foreach ($dataGabungan as $row) {
             $noDoc = strtoupper(str_replace(' ', '', trim($row->NoDoc)));
             if (strlen($noDoc) < 5) continue;
 
@@ -204,21 +314,54 @@ class AutoProgressSOController extends Controller
             }
         }
 
-        // 5. Finishing Format & Filter
-        $finalAuditorsData = [];
-        foreach ($auditorStats as $key => $stat) {
-            if ($key === $unmappedKey && $stat['total_data'] == 0) {
-                continue;
-            }
+// 5. Finishing Format & Filter
+$finalAuditorsData = [];
+foreach ($auditorStats as $key => $stat) {
+    if ($key === $unmappedKey && $stat['total_data'] == 0) {
+        continue;
+    }
 
-            if (empty($stat['gedung_list'])) {
-                $stat['gedung_label'] = '-';
+    $stat['gedung_label'] = empty($stat['gedung_list']) ? '-' : implode(', ', $stat['gedung_list']);
+
+    // Hitung durasi scan
+    $stat['scan_start']    = null;
+    $stat['scan_end']      = null;
+    $stat['scan_duration'] = null;
+
+    if (!empty($scanTimeByAuditor[$key])) {
+        $times = array_filter($scanTimeByAuditor[$key]);
+        sort($times);
+        $stat['scan_start'] = reset($times);
+        $stat['scan_end']   = end($times);
+
+      try {
+            $parseTime = function($timeStr) {
+                if (empty($timeStr)) return null;
+                // Format cntso: "22/06/2026 08:19:55 AM"
+                $dt = \DateTime::createFromFormat('d/m/Y h:i:s A', $timeStr);
+                if ($dt) return $dt;
+                // Format karantina: "2026-06-22 08:24:17"
+                $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $timeStr);
+                if ($dt) return $dt;
+                return null;
+            };
+
+            $start = $parseTime($stat['scan_start']);
+            $end   = $parseTime($stat['scan_end']);
+
+            if ($start && $end) {
+                $diff = $start->diff($end);
+                $stat['scan_duration'] = ($diff->h * 60) + $diff->i;
             } else {
-                $stat['gedung_label'] = implode(', ', $stat['gedung_list']);
+                $stat['scan_duration'] = null;
             }
-
-            $finalAuditorsData[] = (object)$stat;
+        } catch (\Exception $e) {
+            $stat['scan_duration'] = null;
         }
+    }
+
+    $finalAuditorsData[] = (object)$stat;
+}
 
         $auditorsData = collect($finalAuditorsData);
 
@@ -252,7 +395,9 @@ class AutoProgressSOController extends Controller
             ->orderBy('so_name')
             ->get();
 
-        return view('appkso.auto_progress_so', [
+// dd($auditorsData);
+
+      return view('appkso.auto_progress_so', [
             'gedungs'           => $gedungs,
             'selectedGedung'    => $selectedGedung,
             'searchAuditor'     => $searchAuditor,
@@ -263,6 +408,8 @@ class AutoProgressSOController extends Controller
             'list_kso'          => $listKso,
             'selected_so'       => $soName,
             'soName'            => $soName,
+            'globalDuration'    => $globalDuration,
+            'durasiPerGedung'   => $durasiPerGedung,
         ]);
     }
 
@@ -328,8 +475,15 @@ class AutoProgressSOController extends Controller
             ->when($selectedSo, fn($q) => $q->where('so_name', $selectedSo))
             ->get();
 
+        $cntsoDataKarantina = DB::connection('mysql')
+            ->table('so_karantina_scan')
+            ->select('NoDoc',DB::raw('item_code_desc as ItemCode'), 'QtyStk', 'opr', 'opr_v')
+            ->get();
+
+        $dataGabungan = $cntsoData->merge($cntsoDataKarantina);
+
         // 4. Lookup description dari master_items
-        $itemCodes = $cntsoData->pluck('ItemCode')->filter()->map(fn($val) => trim((string)$val))->unique()->values()->toArray();
+        $itemCodes = $dataGabungan->pluck('ItemCode')->filter()->map(fn($val) => trim((string)$val))->unique()->values()->toArray();
         $masterItems = [];
         if (!empty($itemCodes)) {
             $masterRecords = DB::connection('mysql')->table('master_items')->whereIn('item_code_desc', $itemCodes)->select('item_code_desc', 'description')->get();
@@ -344,7 +498,7 @@ class AutoProgressSOController extends Controller
         $picStats     = [];
         $totalKso = $verifiedKso = $totalPcs = $verifiedPcs = 0;
 
-        foreach ($cntsoData as $row) {
+        foreach ($dataGabungan as $row) {
             $noDoc = strtoupper(str_replace(' ', '', trim($row->NoDoc)));
             if (strlen($noDoc) < 5) continue;
 

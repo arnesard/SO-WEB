@@ -253,7 +253,7 @@ function loadTagStockData() {
                 totalQty += qty;
 
                 html += `
-                    <tr style="cursor: pointer;" onclick="openScanHistory('${row.no_doc}', '${row.item}')">
+                    <tr>
                         <td class="text-center">${i + 1}</td>
                         <td>${row.lot_display}</td>
                         <td>${row.no_doc}</td>
@@ -308,11 +308,12 @@ $(document)
             return;
         }
 
+        // Kalau lagi mode validasi (tombol batal diklik)
         if (isValidasiMode) {
             isValidasiMode = false;
             $("#btn-validasi-tag")
-                .removeClass("btn-success")
-                .addClass("btn-warning")
+                .removeClass("btn-danger text-white")
+                .addClass("btn-warning text-dark")
                 .html(
                     '<i data-lucide="check-circle" class="me-1" style="width: 14px; height: 14px;"></i> Validasi',
                 );
@@ -322,6 +323,7 @@ $(document)
             return;
         }
 
+        // Munculin loading pas narik data SO Name
         Swal.fire({
             title: "Mempersiapkan Validasi",
             text: "Mengambil daftar SO Name dari server...",
@@ -331,6 +333,7 @@ $(document)
             },
         });
 
+        // Tembak AJAX buat ambil list SO Name
         $.ajax({
             url: "/appkso/tag-stock/get-so-names-cntso",
             type: "GET",
@@ -340,6 +343,7 @@ $(document)
                     return;
                 }
 
+                // Bikin elemen select dropdown-nya
                 let selectHtml = `<select id="swal-so-name" class="swal2-select" style="width: 80%; padding: 10px; border-radius: 8px;">`;
                 selectHtml += `<option value="" disabled selected>-- Pilih SO Name --</option>`;
                 res.data.forEach((name) => {
@@ -347,6 +351,7 @@ $(document)
                 });
                 selectHtml += `</select>`;
 
+                // Tunjukin popup milih SO Name
                 Swal.fire({
                     title: "Pilih SO Name (CNTSO)",
                     html: selectHtml,
@@ -367,7 +372,18 @@ $(document)
                         return { soName: soName };
                     },
                 }).then((result) => {
-                    if (result.isConfirmed) {
+                    // Cek kalau user klik konfirmasi (pakai result.value buat support Swal versi lama)
+                    if (result.value) {
+                        Swal.fire({
+                            title: "Memproses Validasi",
+                            text: "Sedang membandingkan data...",
+                            allowOutsideClick: false,
+                            onOpen: () => {
+                                Swal.showLoading();
+                            },
+                        });
+
+                        // Eksekusi validasi pakai nama SO yang dipilh
                         executeValidasiData(
                             wh,
                             opId,
@@ -381,7 +397,7 @@ $(document)
             error: function (xhr) {
                 Swal.fire(
                     "Error",
-                    "Gagal terhubung ke server fginvc.",
+                    "Gagal terhubung ke server buat ambil SO Name.",
                     "error",
                 );
                 console.error(xhr.responseText);
@@ -408,7 +424,9 @@ function executeValidasiData(wh, opId, docStart, docEnd, soName) {
         success: function (res) {
             console.log("DATA DARI SERVER:", res);
             if (res.status === "success") {
-                // ⚡ INI YANG KURANG: Kita render datanya ke tabel!
+                // 1. Panggil header validasi biar muncul 9 kolom (termasuk Aktual & Keterangan)
+                renderValidasiHeader();
+
                 let html = "";
                 let totalRak = 0,
                     totalQty = 0;
@@ -421,7 +439,7 @@ function executeValidasiData(wh, opId, docStart, docEnd, soName) {
                     totalRak += rak;
                     totalQty += qtyTag;
 
-                    // Logika Sesuai/Tidak Sesuai
+                    // Logika Sesuai/Tidak Sesuai untuk kolom KETERANGAN
                     let statusBadge =
                         qtyTag === qtyKso
                             ? `<span class="badge bg-success w-100 py-1" style="font-size: 11px;">Sesuai</span>`
@@ -442,16 +460,38 @@ function executeValidasiData(wh, opId, docStart, docEnd, soName) {
                 });
 
                 $("#tbody-tagstock-rows").html(html);
-                alert("Data berhasil ditarik dan tabel terupdate!");
+
+                // 2. Ubah state tombol biar pas diklik lagi dia ngebatalin validasi
+                isValidasiMode = true;
+                $("#btn-validasi-tag")
+                    .removeClass("btn-warning text-dark")
+                    .addClass("btn-danger text-white")
+                    .html(
+                        '<i data-lucide="x-circle" class="me-1" style="width: 14px; height: 14px;"></i> Batal Validasi',
+                    );
+                if (typeof lucide !== "undefined") lucide.createIcons();
+
+                Swal.fire({
+                    toast: true,
+                    position: "top-end",
+                    type: "success", // <-- Tadi di sini tulisannya 'icon', sekarang ganti jadi 'type'
+                    title: "Validasi Selesai Bro!",
+                    showConfirmButton: false,
+                    timer: 1500,
+                });
             } else {
-                alert("Server error: " + res.message);
+                Swal.fire("Server error", res.message, "error");
             }
         },
         error: function (xhr) {
             console.log("ERROR STATUS:", xhr.status);
             console.log("ERROR RESPON:", xhr.responseText);
-            alert(
-                "Error: " + xhr.status + " - Cek console buat liat errornya!",
+            Swal.fire(
+                "Error Server",
+                "Error: " +
+                    xhr.status +
+                    " - Cek console buat liat errornya bro!",
+                "error",
             );
         },
     });
@@ -485,7 +525,7 @@ $(document).on("click", "#btn-cek-doc", function () {
                 selisih !== 0 ? "text-danger fw-bold" : "text-success fw-bold";
 
             html += `
-                <tr style="cursor: pointer;" onclick="openScanHistory('${row.no_doc}', '${row.item}')">
+                <tr>
                     <td class="text-center">${i + 1}</td>
                     <td class="fw-bold">${row.pic_name || "-"}</td>
                     <td>${row.lot_display}</td>

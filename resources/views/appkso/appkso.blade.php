@@ -305,6 +305,14 @@
                                             <i data-lucide="file-spreadsheet" style="width: 12px; height: 12px;"></i>
                                             Export Excel
                                         </button> --}}
+
+                                        {{-- Tambah di deretan tombol card-header Resume PIC Stock --}}
+                                        <button type="button" class="btn btn-xs btn-dark fw-bold shadow-sm"
+                                            style="font-size: 10px;" id="btn-print-resume-pic"
+                                            title="Print tabel Resume PIC Stock">
+                                            <i data-lucide="printer" class="me-1" style="width: 12px; height: 12px;"></i>
+                                            Print Resume PIC
+                                        </button>
                                     </div>
 
                                 </div>

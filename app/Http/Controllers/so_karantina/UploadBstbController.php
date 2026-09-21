@@ -51,11 +51,11 @@ class UploadBstbController extends Controller
 
             // PROSES PALING CEPAT: Tanpa Transaction, langsung Truncate & Insert
             // 1. Kosongkan tabel lama sampai bersih (ID reset ke 1)
-            DB::connection('so_karantina')->table('so_karantina_bstb')->truncate();
+          DB::table('so_karantina_bstb')->truncate();
 
             // 2. Masukkan data baru dari Excel sekaligus (batch insert)
             if (!empty($dataToInsert)) {
-                DB::connection('so_karantina')->table('so_karantina_bstb')->insert($dataToInsert);
+               DB::table('so_karantina_bstb')->insert($dataToInsert);
             }
 
             return back()->with('success', 'Data lama berhasil dibersihkan dan data Excel baru berhasil disimpan!');

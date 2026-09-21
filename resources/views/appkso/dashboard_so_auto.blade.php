@@ -485,7 +485,21 @@
                         </div>
                     </div>
 
-                    <div class="col-12 col-lg-7">
+                    <div class="col-12 col-lg-1">
+                        <div class="card glass-card rounded-4 p-3 shadow-sm d-flex flex-column hover-lift-card border-info"
+                            style="border-top: 4px solid #0bdaf5; height: 280px;">
+                            <div class="d-flex align-items-center mb-1">
+                                <!-- <h6 class="fw-bold mb-0 text-dark d-flex align-items-center" style="font-size: 13px;">
+                                    <i data-lucide="layers" class="me-2" style="width: 16px; height: 16px; color: #0bdaf5;"></i>
+                                    Resume TIRE & TUBE
+                                </h6> -->
+                            </div>
+
+                            <div id="tireTubeChart" class="flex-grow-1" style="width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-6">
                         <div class="card glass-card rounded-4 p-3 shadow-sm d-flex flex-column hover-lift-card border-orange"
                             style="border-top: 4px solid #f59e0b; height: 280px;">
                             <div class="d-flex align-items-center mb-1">

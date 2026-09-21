@@ -254,4 +254,137 @@ class SoKarantinaController extends Controller
             ], 500);
         }
     }
+
+    // Ambil daftar nama operator dari so_karantina_scan JOIN so_all_wh_pic_stock_db
+    public function getOperatorList()
+    {
+        $operators = DB::select("
+        SELECT DISTINCT
+            BINARY p.no_penneng as no_penneng,
+            p.nama
+        FROM so_karantina_scan s
+        LEFT JOIN so_all_wh_pic_stock_db p ON BINARY s.opr = BINARY p.no_penneng
+        WHERE p.nama IS NOT NULL AND p.nama != ''
+        ORDER BY p.nama ASC
+    ");
+
+        return response()->json(['data' => $operators]);
+    }
+ public function getRekapByOperator(Request $request)
+{
+    try {
+        $opr = $request->input('opr');
+
+        $data = DB::select("
+            SELECT
+                s.item_code_desc,
+                m.description,
+                SUM(s.QtyStk) as total_scan,
+                MIN(s.NoDoc) as sample_nokso
+            FROM so_karantina_scan s
+            LEFT JOIN master_items m ON TRIM(s.item_code_desc) = TRIM(m.item_code_desc)
+            LEFT JOIN so_all_wh_pic_stock_db p ON BINARY s.opr = BINARY p.no_penneng
+            WHERE p.nama = ?
+            GROUP BY s.item_code_desc, m.description
+            ORDER BY s.item_code_desc ASC
+        ", [$opr]);
+
+        // Ambil list auditor
+        $auditorList = DB::table('so_all_wh_pic_auditor_db')
+            ->select('nama', 'gedung', 'lot')
+            ->get();
+
+        // ── Ambil SEMUA NoDoc milik operator ini ──
+        $allNoDocs = DB::select("
+            SELECT DISTINCT s.NoDoc
+            FROM so_karantina_scan s
+            LEFT JOIN so_all_wh_pic_stock_db p ON BINARY s.opr = BINARY p.no_penneng
+            WHERE p.nama = ?
+        ", [$opr]);
+
+        // ── Mapping semua NoDoc → auditor unik ──
+        $auditorNames = collect($allNoDocs)
+            ->map(fn($row) => $this->findAuditorByNokso($row->NoDoc ?? '', $auditorList))
+            ->filter(fn($nama) => $nama && $nama !== '-')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // Inject auditor per baris
+        $data = array_map(function ($row) use ($auditorList) {
+            $row->auditor = $this->findAuditorByNokso($row->sample_nokso ?? '', $auditorList);
+            return $row;
+        }, $data);
+
+        return response()->json([
+            'success'       => true,
+            'data'          => $data,
+            'auditor_names' => $auditorNames, // ← INI YANG SEBELUMNYA TIDAK ADA
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
+
+    // ── Ambil daftar auditor untuk dropdown modal ──
+public function getAuditorList()
+{
+    $auditors = DB::table('so_all_wh_pic_auditor_db')
+        ->select('nama')
+        ->whereNotNull('nama')
+        ->where('nama', '!=', '')
+        ->distinct()
+        ->orderBy('nama', 'asc')
+        ->get();
+
+    return response()->json(['data' => $auditors]);
+}
+
+// ── Sudah ada tapi perlu ditambah findAuditorByNokso ──
+private function findAuditorByNokso(string $nokso, $auditorList): string
+{
+    $nokso = trim($nokso);
+
+    // ── FORMAT 1: G2F0101, G3G0401 (format Gedung BPW via prefix G) ──
+    if (preg_match('/^G(\d+)([A-Z]+)(\d{2})\d{2}$/', $nokso, $m)) {
+        $gedung = 'BPW0' . $m[1];
+        $letter = $m[2];
+        $number = (int) $m[3];
+
+        foreach ($auditorList as $aud) {
+            if (trim($aud->gedung) !== $gedung) continue;
+            if (!preg_match('/^([A-Z]+)(\d+)-[A-Z]+(\d+)$/', trim($aud->lot), $r)) continue;
+            if ($r[1] === $letter && $number >= (int)$r[2] && $number <= (int)$r[3]) {
+                return trim($aud->nama);
+            }
+        }
+
+        return '-';
+    }
+
+    // ── FORMAT 2: A01A002 → BPW01, letter=A, number=2 ──
+    // Struktur: [PrefixHuruf][GedungNum2digit][Letter][NomorLot3digit]
+    if (preg_match('/^[A-Z](\d{2})([A-Z])(\d{3})$/', $nokso, $m)) {
+        $gedung = 'BPW0' . ltrim($m[1], '0'); // "01" → "BPW01"
+        $letter = $m[2];                        // "A"
+        $number = (int) $m[3];                  // "002" → 2
+
+        foreach ($auditorList as $aud) {
+            if (trim($aud->gedung) !== $gedung) continue;
+            if (!preg_match('/^([A-Z]+)(\d+)-[A-Z]+(\d+)$/', trim($aud->lot), $r)) continue;
+            if ($r[1] === $letter && $number >= (int)$r[2] && $number <= (int)$r[3]) {
+                return trim($aud->nama);
+            }
+        }
+
+        return '-';
+    }
+
+    return '-';
+}
+
 }

@@ -671,3 +671,468 @@ function openScanDetailModal(itemCode) {
         },
     });
 }
+
+// ==========================================
+// 🖨️ PRINT REKAP SO KARANTINA
+// ==========================================
+function openPrintRekapModal() {
+    document.getElementById("btn-export-internal").classList.add("disabled");
+    document.getElementById("btn-export-external").classList.add("disabled");
+    document.getElementById("modal-rekap-info").innerHTML = `
+        <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+        <span class="ms-2 text-muted">Memuat data operator...</span>
+    `;
+
+    new bootstrap.Modal(document.getElementById("modalPrintRekap")).show();
+
+    // ── Cukup fetch operators saja, auditor di-mapping per operator di server ──
+    $.ajax({
+        url: "/so-karantina/operators",
+        type: "GET",
+        dataType: "json",
+        success: function (resOpr) {
+            let operators = resOpr.data || [];
+            window.rekapOperators = operators;
+
+            document.getElementById("modal-rekap-info").innerHTML = `
+                <div class="text-center">
+                    <div class="fw-bold text-dark" style="font-size: 15px;">${operators.length}</div>
+                    <div class="text-muted" style="font-size: 10px;">Operator / Pendamping ditemukan</div>
+                    <div class="text-muted mt-1" style="font-size: 9px;">
+                        Auditor di-mapping otomatis per operator berdasarkan NoDoc
+                    </div>
+                </div>
+            `;
+
+            document
+                .getElementById("btn-export-internal")
+                .classList.remove("disabled");
+            document
+                .getElementById("btn-export-external")
+                .classList.remove("disabled");
+        },
+        error: function () {
+            document.getElementById("modal-rekap-info").innerHTML = `
+                <span class="text-danger fw-bold" style="font-size: 11px;">
+                    ⚠️ Gagal memuat data operator!
+                </span>
+            `;
+        },
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    // ── Export Internal (TOTAL terisi) ──
+    const btnInternal = document.getElementById("btn-export-internal");
+    if (btnInternal) {
+        btnInternal.addEventListener("click", function () {
+            bootstrap.Modal.getInstance(
+                document.getElementById("modalPrintRekap"),
+            ).hide();
+            exportRekapExcel("internal");
+        });
+    }
+
+    // ── Export External (TOTAL kosong) ──
+    const btnExternal = document.getElementById("btn-export-external");
+    if (btnExternal) {
+        btnExternal.addEventListener("click", function () {
+            bootstrap.Modal.getInstance(
+                document.getElementById("modalPrintRekap"),
+            ).hide();
+            exportRekapExcel("external");
+        });
+    }
+});
+
+function doPrint() {
+    console.log("doPrint dipanggil");
+    const selectEl = document.getElementById("swal-select-operator");
+    console.log("selectEl:", selectEl);
+    console.log("value:", selectEl ? selectEl.value : "NULL");
+
+    if (!selectEl || !selectEl.value) {
+        alert("Pilih nama operator dulu!");
+        return;
+    }
+
+    let nama = selectEl.value;
+    console.log("nama:", nama);
+    Swal.close();
+
+    console.log("mau panggil printRekap...");
+    printRekap(nama);
+}
+async function exportRekapExcel(type) {
+    // type: 'internal' | 'external'
+    let isInternal = type === "internal";
+
+    Swal.fire({
+        title: "Menyiapkan Excel...",
+        text: `Membuat rekap ${isInternal ? "Internal" : "External"}...`,
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        },
+    });
+
+    try {
+        // Ambil semua operator lalu loop per operator
+        let operators = window.rekapOperators || [];
+        let auditors = window.rekapAuditors || [];
+        let currentYear = new Date().getFullYear();
+
+        if (operators.length === 0) {
+            Swal.fire({
+                title: "Data Kosong!",
+                text: "Tidak ada data operator.",
+                icon: "warning",
+            });
+            return;
+        }
+
+        // ── Style Helpers ──
+        const wb = new ExcelJS.Workbook();
+        wb.creator = "SO Karantina System";
+        wb.created = new Date();
+
+        const borderThin = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+        };
+        const borderMedium = {
+            top: { style: "medium" },
+            left: { style: "medium" },
+            bottom: { style: "medium" },
+            right: { style: "medium" },
+        };
+        const fontBold12 = { name: "Arial", size: 12, bold: true };
+        const fontBold10 = { name: "Arial", size: 10, bold: true };
+        const fontNormal10 = { name: "Arial", size: 10 };
+        const alignCenter = { vertical: "middle", horizontal: "center" };
+        const alignLeft = { vertical: "middle", horizontal: "left" };
+        const alignRight = { vertical: "middle", horizontal: "right" };
+        const fillHeader = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF1a1a1a" },
+        };
+        const fillFooter = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FFf0f0f0" },
+        };
+
+        function buildSheetHeader(
+            ws,
+            namaGudang,
+            namaAuditor,
+            currentYear,
+            totalCols,
+        ) {
+            const mergeEnd = String.fromCharCode(64 + totalCols);
+
+            ws.mergeCells(`A1:${mergeEnd}1`);
+            ws.getCell("A1").value =
+                "FORM REKAP PERHITUNGAN STOCK OPNAME AREA KARANTINA";
+            ws.getCell("A1").font = fontBold12;
+            ws.getCell("A1").alignment = alignCenter;
+            ws.getRow(1).height = 22;
+
+            ws.mergeCells(`A2:${mergeEnd}2`);
+            ws.getCell("A2").value = "PT GAJAH TUNGGAL Tbk";
+            ws.getCell("A2").font = fontBold10;
+            ws.getCell("A2").alignment = alignLeft;
+            ws.getRow(2).height = 16;
+
+            ws.getRow(3).height = 6;
+
+            // ── Kolom TTD: selalu D & E untuk internal (5 col), C & D untuk external (4 col) ──
+            let L1 = String.fromCharCode(64 + totalCols - 1); // D atau C
+            let L2 = String.fromCharCode(64 + totalCols); // E atau D
+
+            // ── Info SO: kolom A & B saja (tidak merge sampai C agar tidak bentrok TTD) ──
+            const infoRows = [
+                ["SEMESTER / TAHUN", `: ${currentYear}`],
+                ["LOKASI GUDANG", ": Gudang Ban B Dept."],
+                ["ID SO", ": "],
+                ["PENDAMPING", `: ${namaGudang}`],
+                ["AUDITOR", `: ${namaAuditor}`],
+            ];
+
+            infoRows.forEach(([label, val], i) => {
+                let r = 4 + i;
+                ws.getCell(`A${r}`).value = label;
+                ws.getCell(`A${r}`).font = fontBold10;
+                // ← FIX: merge hanya A sampai kolom sebelum TTD (bukan sampai C hardcode)
+                let mergeInfoEnd = String.fromCharCode(64 + totalCols - 2); // C untuk internal, B untuk external
+                if (totalCols - 2 >= 2) {
+                    ws.mergeCells(`B${r}:${mergeInfoEnd}${r}`);
+                }
+                ws.getCell(`B${r}`).value = val;
+                ws.getCell(`B${r}`).font = fontNormal10;
+                ws.getRow(r).height = 18;
+            });
+
+            // ── Kotak TTD ──
+            ws.getCell(`${L1}4`).value = "Pendamping Gudang";
+            ws.getCell(`${L1}4`).font = fontBold10;
+            ws.getCell(`${L1}4`).alignment = alignCenter;
+            ws.getCell(`${L2}4`).value = "Auditor";
+            ws.getCell(`${L2}4`).font = fontBold10;
+            ws.getCell(`${L2}4`).alignment = alignCenter;
+
+            ws.mergeCells(`${L1}5:${L1}7`);
+            ws.mergeCells(`${L2}5:${L2}7`);
+
+            ws.getCell(`${L1}8`).value = `(${namaGudang})`;
+            ws.getCell(`${L1}8`).alignment = alignCenter;
+            ws.getCell(`${L1}8`).font = fontNormal10;
+            ws.getCell(`${L2}8`).value = `(${namaAuditor})`;
+            ws.getCell(`${L2}8`).alignment = alignCenter;
+            ws.getCell(`${L2}8`).font = fontNormal10;
+
+            for (let r = 4; r <= 8; r++) {
+                ws.getCell(`${L1}${r}`).border = borderThin;
+                ws.getCell(`${L2}${r}`).border = borderThin;
+            }
+
+            ws.getRow(9).height = 8;
+        }
+
+        // ── Helper: Build Sheet per Operator ──
+        function buildOperatorSheet(
+            ws,
+            namaGudang,
+            namaAuditor,
+            rows,
+            isInternal,
+        ) {
+            // Internal: 5 kolom (+ TOTAL), External: 4 kolom (tanpa TOTAL)
+            let totalCols = isInternal ? 5 : 4;
+
+            if (isInternal) {
+                ws.columns = [
+                    { width: 5 },
+                    { width: 20 },
+                    { width: 45 },
+                    { width: 30 },
+                    { width: 14 }, // ← TOTAL
+                ];
+            } else {
+                ws.columns = [
+                    { width: 5 },
+                    { width: 20 },
+                    { width: 45 },
+                    { width: 30 },
+                    // ← tidak ada kolom TOTAL
+                ];
+            }
+
+            buildSheetHeader(
+                ws,
+                namaGudang,
+                namaAuditor,
+                currentYear,
+                totalCols,
+            );
+
+            // ── Header tabel ──
+            const headRow = ws.getRow(10);
+            headRow.height = 20;
+
+            let headers = [
+                { label: "NO", align: alignCenter },
+                { label: "ITEM CODE", align: alignCenter },
+                { label: "ITEM DESCRIPTION", align: alignCenter },
+                { label: "PERINCIAN HITUNGAN", align: alignCenter },
+            ];
+
+            // Kolom TOTAL hanya untuk internal
+            if (isInternal) {
+                headers.push({ label: "TOTAL", align: alignCenter });
+            }
+
+            headers.forEach((h, i) => {
+                let cell = headRow.getCell(i + 1);
+                cell.value = h.label;
+                cell.font = {
+                    name: "Arial",
+                    size: 10,
+                    bold: true,
+                    color: { argb: "FFFFFFFF" },
+                };
+                cell.fill = fillHeader;
+                cell.alignment = h.align;
+                cell.border = borderMedium;
+            });
+
+            // ── Data rows ──
+            let startR = 11;
+            rows.forEach((item, idx) => {
+                let r = ws.getRow(startR + idx);
+                r.height = 18;
+
+                let bgColor = idx % 2 === 0 ? "FFFFFFFF" : "FFF9F9F9";
+                let fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: { argb: bgColor },
+                };
+
+                r.getCell(1).value = idx + 1;
+                r.getCell(2).value = item.item_code_desc;
+                r.getCell(3).value = item.description || "-";
+                r.getCell(4).value = ""; // PERINCIAN HITUNGAN — kosong untuk diisi manual
+
+                r.getCell(1).alignment = alignCenter;
+                r.getCell(2).alignment = alignLeft;
+                r.getCell(3).alignment = alignLeft;
+                r.getCell(4).alignment = alignCenter;
+
+                // Kolom TOTAL hanya internal
+                if (isInternal) {
+                    r.getCell(5).value = Number(item.total_scan) || 0;
+                    r.getCell(5).numFmt = "#,##0";
+                    r.getCell(5).alignment = alignRight;
+                    r.getCell(5).font = fontNormal10;
+                    r.getCell(5).border = borderThin;
+                    r.getCell(5).fill = fill;
+                }
+
+                for (let c = 1; c <= totalCols; c++) {
+                    r.getCell(c).font = fontNormal10;
+                    r.getCell(c).border = borderThin;
+                    r.getCell(c).fill = fill;
+                }
+            });
+
+            // ── Footer ──
+            let footR = startR + rows.length;
+
+            if (isInternal) {
+                // Internal: merge A-D, kolom E isi total qty
+                ws.mergeCells(`A${footR}:D${footR}`);
+                let fCell = ws.getCell(`A${footR}`);
+                fCell.value = "GRAND TOTAL";
+                fCell.font = fontBold10;
+                fCell.alignment = alignCenter;
+                fCell.fill = fillFooter;
+
+                let totalQty = rows.reduce(
+                    (sum, r) => sum + (Number(r.total_scan) || 0),
+                    0,
+                );
+                let fQty = ws.getCell(`E${footR}`);
+                fQty.value = totalQty;
+                fQty.numFmt = "#,##0";
+                fQty.font = fontBold10;
+                fQty.alignment = alignRight;
+                fQty.fill = fillFooter;
+
+                for (let c = 1; c <= 5; c++) {
+                    ws.getCell(footR, c).border = borderMedium;
+                }
+            } else {
+                // External: merge A-D saja, tidak ada kolom E
+                ws.mergeCells(`A${footR}:D${footR}`);
+                let fCell = ws.getCell(`A${footR}`);
+                fCell.value = "GRAND TOTAL";
+                fCell.font = fontBold10;
+                fCell.alignment = alignCenter;
+                fCell.fill = fillFooter;
+
+                for (let c = 1; c <= 4; c++) {
+                    ws.getCell(footR, c).border = borderMedium;
+                }
+            }
+
+            ws.views = [{ state: "frozen", ySplit: 10 }];
+        }
+
+        // ── Loop per Operator → buat sheet ──
+        // Fetch semua data per operator secara parallel
+        let fetchPromises = operators.map((opr) =>
+            $.ajax({
+                url: "/so-karantina/rekap-by-operator",
+                type: "GET",
+                data: { opr: opr.nama },
+                dataType: "json",
+            }).then((res) => ({
+                namaGudang: opr.nama,
+                rows: res.success ? res.data : [],
+                // ← BARU: auditor_names dari response per operator
+                namaAuditor:
+                    res.auditor_names && res.auditor_names.length > 0
+                        ? res.auditor_names.join(", ")
+                        : "-",
+            })),
+        );
+
+        let allData = await Promise.all(fetchPromises);
+
+        // Build sheet per operator
+        allData.forEach(({ namaGudang, rows, namaAuditor }) => {
+            // ← tambah namaAuditor
+            if (rows.length === 0) return; // skip kalau kosong
+
+            // Sanitize nama sheet (max 31 char, no special char)
+            let sheetName = namaGudang
+                .replace(/[:\\\/\?\*\[\]]/g, "")
+                .substring(0, 31)
+                .trim();
+
+            // Handle duplikat nama sheet
+            let baseName = sheetName;
+            let counter = 2;
+            while (wb.worksheets.find((s) => s.name === sheetName)) {
+                sheetName = baseName.substring(0, 28) + "_" + counter++;
+            }
+
+            const ws = wb.addWorksheet(sheetName);
+            buildOperatorSheet(ws, namaGudang, namaAuditor, rows, isInternal);
+        });
+
+        if (wb.worksheets.length === 0) {
+            Swal.fire({
+                title: "Data Kosong!",
+                text: "Tidak ada data untuk di-export.",
+                icon: "warning",
+            });
+            return;
+        }
+
+        // ── Download ──
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        let timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        link.href = url;
+        link.download = `Rekap_SO_Karantina_${isInternal ? "Internal" : "External"}_${timestamp}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        Swal.fire({
+            title: `Export ${isInternal ? "Internal" : "External"} Sukses! 🎉`,
+            html: `<strong>${wb.worksheets.length} sheet</strong> operator berhasil di-export.`,
+            icon: "success",
+            confirmButtonColor: "#198754",
+            timer: 4000,
+        });
+    } catch (err) {
+        console.error(err);
+        Swal.fire({
+            title: "Export Gagal!",
+            text: "Error: " + err.message,
+            icon: "error",
+            confirmButtonColor: "#d33",
+        });
+    }
+}

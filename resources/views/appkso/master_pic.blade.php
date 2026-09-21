@@ -92,6 +92,7 @@
                                     <option value="BPW" selected>BPW</option>
                                     <option value="DPW">DPW</option>
                                     <option value="RPW">RPW</option>
+                                    <option value="DCK">DCK</option>
                                 </select>
                             </div>
 
@@ -112,6 +113,7 @@
                                         <option value="BPW02">BPW02</option>
                                         <option value="BPW03">BPW03</option>
                                         <option value="BPW04">BPW04</option>
+                                        <option value="DCK01">DCK01</option>
                                     </select>
                                 </div>
                             </div>
@@ -173,6 +175,7 @@
                                 <option value="BPW" selected>BPW</option>
                                 <option value="DPW">DPW</option>
                                 <option value="RPW">RPW</option>
+                                <option value="DCK">DCK</option>
                             </select>
                             {{-- Input Search Baru --}}
                             <div class="input-group input-group-sm shadow-sm" style="width: 250px;">
